@@ -178,3 +178,101 @@ def build_table(events, hours, people, month):
     table.append(line("Total Person Hours Worked", cells(
         lambda b, months, _: fmt_count(round(hours_sum(hours, b, months)))), bold=True))
     return table
+
+
+def build_kpis(events, hours, month, today):
+    kpis = {}
+    for b in config.BUCKETS:
+        trifr, ltifr = frequency_rates(events, hours, b, month)
+        lti_days = [e["day"] for e in events if e["bucket"] == b and e["injury_class"] == "LTI"]
+        since = str((today - max(lti_days)).days) if lti_days else "None recorded"
+        injuries = sum(1 for e in _in(events, b, {month}) if e["injury_class"])
+        kpis[b] = [
+            ("TRIFR", fmt_rate(trifr)),
+            ("LTIFR", fmt_rate(ltifr)),
+            ("Injuries in month", fmt_count(injuries)),
+            ("Days since last LTI", since),
+            ("Person hours in month", fmt_count(round(hours_sum(hours, b, {month})))),
+        ]
+    return kpis
+
+
+def build_trend(events, hours, month):
+    points = rolling_12(month)
+    trend = {"labels": [short_label(p) for p in points],
+             "trifr": {b: [] for b in config.BUCKETS},
+             "ltifr": {b: [] for b in config.BUCKETS}}
+    for point in points:
+        for b in config.BUCKETS:
+            trifr, ltifr = frequency_rates(events, hours, b, point)
+            trend["trifr"][b].append(trifr)
+            trend["ltifr"][b].append(ltifr)
+    return trend
+
+
+def _trend_group(event):
+    if event["injury_class"]:
+        return "Injury"
+    return event["row"] if event["row"] in config.TREND_GROUPS else "Other"
+
+
+def build_event_trend(events, month):
+    points = rolling_12(month)
+    tally = Counter((_trend_group(e), e["ym"]) for e in events)
+    return {"labels": [short_label(p) for p in points],
+            "series": [(group, [tally[(group, p)] for p in points]) for group in config.TREND_GROUPS]}
+
+
+def _breakdown(values, keep=8):
+    ranked = sorted(Counter(v or "Not recorded" for v in values).items(),
+                    key=lambda item: (-item[1], item[0]))
+    if len(ranked) > keep + 1:
+        ranked = ranked[:keep] + [("Other", sum(n for _, n in ranked[keep:]))]
+    return ranked
+
+
+def build_injury_analysis(events, month):
+    window = set(rolling_12(month))
+    injured = [e for e in events if e["injury_class"] in _COUNTED_CLASSES and e["ym"] in window]
+    return [("Body location", _breakdown([e["body"] for e in injured])),
+            ("Nature of injury", _breakdown([e["nature"] for e in injured])),
+            ("Mechanism of injury", _breakdown([e["mechanism"] for e in injured]))]
+
+
+def build_status(events, actions, month, today):
+    window = set(rolling_12(month))
+    recent = [e for e in events if e["ym"] in window]
+    status = {"events_open": sum(1 for e in recent if e["open"]),
+              "events_closed": sum(1 for e in recent if not e["open"]),
+              "actions_open": 0, "actions_overdue": 0, "actions_closed_month": 0}
+    for a in actions:
+        state = _text(a.get("actionStatus")).lower()
+        if state == "open":
+            status["actions_open"] += 1
+            due = parse_day(a.get("dueDate"))
+            if due and due < today:
+                status["actions_overdue"] += 1
+        elif state.startswith("closed"):
+            done = parse_day(a.get("completedDate"))
+            if done and (done.year, done.month) == month:
+                status["actions_closed_month"] += 1
+    return status
+
+
+def build_report(raw, today, generated):
+    month = add_months((today.year, today.month), -1)
+    issues = new_issues()
+    events = normalise_events(raw["events"], raw["injuries"], issues)
+    hours = normalise_hours(raw["hours"], issues)
+    return {
+        "month_label": long_label(month),
+        "generated": generated,
+        "kpis": build_kpis(events, hours, month, today),
+        "table": build_table(events, hours, raw["people"], month),
+        "trend": build_trend(events, hours, month),
+        "event_trend": build_event_trend(events, month),
+        "injury_analysis": build_injury_analysis(events, month),
+        "status": build_status(events, raw["actions"], month, today),
+        "unmapped": sorted(issues["unmapped"]),
+        "undated": issues["undated"],
+    }
