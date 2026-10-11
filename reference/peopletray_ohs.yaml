@@ -1,0 +1,19 @@
+# PeopleTray OHS endpoints - facts verified live 2026-10-11
+source: https://api-peopletray.azurewebsites.net
+auth: {header: X-API-Key, key_file: "C:\\claude\\PeopleTray DAS\\reference\\PT API Key for NMG.txt", key_is_on: line 2}
+swagger: /swagger/docs/v1   # 217 paths
+endpoints:
+  /api/v2/powerbi/events:          {params: [fromDate, toDate], rows_jul25_sep26: 138}
+  /api/v2/powerbi/eventinjurylist: {params: [fromDate, toDate], note: one row per event incl. non-injury events}
+  /api/v2/powerbi/exposurehours:   {params: [fromDate, toDate], fields: [groupName, month, year, exposureHours, numberOfTeamMembers], history_from: 2025-07}
+  /api/v2/powerbi/actions:         {params: [fromDate, toDate], status_values: [Open, Closed complete, Closed partially complete, Closed non implemented]}
+  /api/v2/powerbi/people:          {params: [], rows: 372, note: unpaginated; field is spelt emplpyeeType}
+  /api/v2/powerbi/incidentlist:    {status: returns 0 rows - not used}
+traps:
+  - events.eventDate is dd-mm-yyyy; eventDateTime is ISO - use eventDateTime
+  - injuryType has a trailing space, e.g. "FAI (First Aid Injury) "
+  - injuryType and eventSubType often disagree (Aug 2026 LTI has subtype Medical Treatment Injury)
+  - eventStatus values: "Closed and Saved", "Open Workflow"
+  - exposure hours cannot be reconciled to Neil's old spreadsheet (its Exploration 5,277 is not a multiple of 6)
+event_types_seen: [Property Damage / Loss, Injury, Procedural Compliance, Near Miss, Production Loss, Non Work Related, Misfire, Violence, Security, Business / Operational Interruption, Community / Heritage]
+nmg_head_count_2026_10_11: {Mining: 22, Exploration: 16, rule: "employer == New Murchison Gold Ltd and emplpyeeType != Contractor, Perth excluded"}

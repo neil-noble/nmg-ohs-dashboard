@@ -1,6 +1,6 @@
 project: NMG OHS Dashboard
 created: 2026-10-11
-phase: plan_review   # brainstorm -> spec_review -> plan_review -> build -> live
+phase: build
 url_target: https://www.emergencyservicesaustralia.com.au/nmg-ohs
 spec: docs/superpowers/specs/2026-10-11-nmg-ohs-dashboard-design.md
 plan: docs/superpowers/plans/2026-10-11-nmg-ohs-dashboard.md
@@ -16,5 +16,5 @@ decisions:
   panels: [kpi_tiles, event_table, trifr_ltifr_trend, event_trend_by_type, injury_analysis, open_events_actions]
   privacy: public Pages site -> counts/rates only, no names or descriptions
 next: Neil reviews plan + picks execution method -> build (Tasks 1-7) -> publish (Task 8)
-pending_setup: [ruflo init, gh repos, PAGES_TOKEN, PT_API_KEY secret, Wix page /nmg-ohs]
+pending_setup: [gh repos, PAGES_TOKEN, PT_API_KEY secret, Wix page /nmg-ohs]
 api_key: C:\claude\PeopleTray DAS\reference\PT API Key for NMG.txt (line 2) - never copy into repo

@@ -17,3 +17,6 @@ __pycache__/
 *token*.txt
 *key*.txt
 *secret*
+
+# Build output - published to nmg-ohs-site by the workflow, not kept here
+docs/index.html
