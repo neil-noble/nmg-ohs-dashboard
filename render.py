@@ -49,6 +49,7 @@ tbody tr:nth-child(even){background:#fafaf8}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
 .card h3{margin:0 0 6px;font-size:16px;color:var(--navy);text-align:center}
 svg{width:100%;height:auto;display:block}
+.wide{max-width:780px;margin:0 auto}
 svg .grid{stroke:var(--grey);stroke-width:1}
 svg .tick{font-size:10px;fill:var(--muted)}
 .legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:13px;margin-top:6px}
@@ -66,7 +67,7 @@ footer p{margin:4px 0}
 header h1{font-size:20px}}
 """
 
-W, H, LEFT, RIGHT, TOP, BOTTOM = 560, 250, 40, 14, 14, 30
+W, H, LEFT, RIGHT, TOP, BOTTOM = 560, 250, 40, 22, 14, 30
 
 
 def nice_max(value):
@@ -141,7 +142,8 @@ def _stacked_bars(title, labels, series):
                              f'<title>{escape(name)}: {values[i]}</title></rect>')
                 base += values[i]
     svg = f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{escape(title)}">{"".join(parts)}</svg>'
-    return svg + _legend([(name, colour) for (name, _), colour in zip(series, config.TREND_COLOURS)])
+    legend = _legend([(name, colour) for (name, _), colour in zip(series, config.TREND_COLOURS)])
+    return f'<div class="wide">{svg}{legend}</div>'
 
 
 def _header(report, logo_b64):
