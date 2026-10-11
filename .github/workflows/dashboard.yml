@@ -40,12 +40,18 @@ jobs:
           PT_API_KEY: ${{ secrets.PT_API_KEY }}
 
       - name: Push to public site repo
-        # The token reaches the shell as an environment variable, never as script
-        # text, so whatever the secret holds cannot be run as a command.
+        # A write deploy key on nmg-ohs-site only. It reaches the shell as an
+        # environment variable, never as script text.
         env:
-          PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
+          SITE_DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
         run: |
-          git clone "https://x-access-token:${PAGES_TOKEN}@github.com/neil-noble/nmg-ohs-site.git" /tmp/nmg-ohs-site
+          mkdir -p ~/.ssh
+          printf '%s
+' "$SITE_DEPLOY_KEY" > ~/.ssh/site_key
+          chmod 600 ~/.ssh/site_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/site_key -o IdentitiesOnly=yes"
+          git clone git@github.com:neil-noble/nmg-ohs-site.git /tmp/nmg-ohs-site
           cp docs/index.html /tmp/nmg-ohs-site/index.html
           cd /tmp/nmg-ohs-site
           git config user.name  "github-actions[bot]"
