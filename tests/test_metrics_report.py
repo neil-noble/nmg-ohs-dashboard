@@ -237,3 +237,13 @@ def test_web_pie_keeps_every_slice_peopletray_shows():
     web = dict(WEB, open_workflows=[(f"Workflow {i:02d}", 20 - i) for i in range(14)])
     report = metrics.build_report(dict(sample.RAW, web_charts=web), sample.TODAY, "x")
     assert len(report["open_workflows"]) == 14
+
+
+def test_exploration_daily_prestart_is_left_off_the_open_workflows_pie():
+    web = dict(WEB, open_workflows=[("Take 5", 18), ("Exploration Daily Prestart", 8),
+                                    ("Exploration Monthly LV Inspection", 2)])
+    from_web = metrics.build_report(dict(sample.RAW, web_charts=web), sample.TODAY, "x")["open_workflows"]
+    assert from_web == [("Take 5", 18), ("Exploration Monthly LV Inspection", 2)]
+    lists = [sample.checklist("Exploration Daily Prestart"), sample.checklist("Take 5")]
+    from_api = metrics.build_report(dict(sample.RAW, checklists=lists), sample.TODAY, "x")["open_workflows"]
+    assert from_api == [("Safety Events", 1), ("Take 5", 1)]

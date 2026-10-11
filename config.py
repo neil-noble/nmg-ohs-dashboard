@@ -86,10 +86,11 @@ def event_row(event_type):
     return name or "Unspecified event type"
 
 
-# PeopleTray's own "Open Workflows" chart names open safety events like this, and leaves
-# these HR forms off it.
+# PeopleTray's own "Open Workflows" chart names open safety events like this.
 SAFETY_EVENTS_WORKFLOW = "Safety Events"
-WORKFLOWS_NOT_CHARTED = ("Uniform Order", "Medical Declaration Form")
+# Left off the Open workflows pie: two HR forms PeopleTray's chart does not show either, and
+# the Exploration Daily Prestart, which Neil asked to have removed (2026-10-12).
+WORKFLOWS_NOT_CHARTED = ("Uniform Order", "Medical Declaration Form", "Exploration Daily Prestart")
 
 NAVY, RIVER, GOLD, PALE_GOLD = "#083045", "#55848A", "#927128", "#B19045"
 SAND, COOL_GREY, BLACK = "#F1DCAA", "#DBDBD3", "#333334"

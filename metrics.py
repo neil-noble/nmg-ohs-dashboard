@@ -407,7 +407,8 @@ def build_report(raw, today, generated):
     if web:
         source = "web"
         sheq_actions = list(web["sheq_actions"])
-        open_workflows = sorted(((name, n) for name, n in web["open_workflows"] if n),
+        open_workflows = sorted(((name, n) for name, n in web["open_workflows"]
+                                 if n and name not in config.WORKFLOWS_NOT_CHARTED),
                                 key=lambda item: (-item[1], item[0]))
     else:
         source = "api_fallback" if raw.get("web_error") else "api"
