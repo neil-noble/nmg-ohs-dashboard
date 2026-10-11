@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# One build at a time, so two schedule slots landing together cannot race on the push.
+concurrency:
+  group: dashboard
+  cancel-in-progress: false
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
