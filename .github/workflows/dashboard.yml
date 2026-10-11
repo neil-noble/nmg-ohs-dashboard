@@ -46,8 +46,7 @@ jobs:
           SITE_DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s
-' "$SITE_DEPLOY_KEY" > ~/.ssh/site_key
+          echo "$SITE_DEPLOY_KEY" > ~/.ssh/site_key
           chmod 600 ~/.ssh/site_key
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/site_key -o IdentitiesOnly=yes"
