@@ -106,7 +106,9 @@ W, H, LEFT, RIGHT, TOP, BOTTOM = 560, 250, 36, 44, 16, 28
 DONUT_R = 15.915          # circumference 100, so dash lengths are percentages
 RED = "#A4262C"
 OPEN_CLOSED_COLOURS = (RED, config.RIVER)
-SHEQ_COLOURS = (config.NAVY, config.RIVER, RED)          # assigned, due, overdue
+SHEQ_COLOURS = ("#B5B5B0", "#2E9E44", "#D94F32")        # assigned, due, overdue - as PeopleTray
+PIE_COLOURS = (config.RIVER, config.GOLD, config.NAVY, "#D8C8A2", "#8498A2", config.PALE_GOLD,
+               "#AAC2C5", "#99999A", config.SAND, config.BLACK)
 LATE_COLOUR = "#8498A2"
 
 
@@ -230,7 +232,8 @@ def _pie(title, items, colours):
 def _bar_chart(title, items, colours):
     """Vertical bars with the value above each and its name below."""
     width, right = 360, 12
-    parts, y = _axes(nice_max(max((n for _, n in items), default=0)), width, right)
+    # 15% headroom so the value above the tallest bar is never clipped by the top edge.
+    parts, y = _axes(nice_max(max((n for _, n in items), default=0) * 1.15), width, right)
     slot = (width - LEFT - right) / max(len(items), 1)
     bar = slot * 0.5
     for i, ((name, n), colour) in enumerate(zip(items, colours)):
@@ -395,15 +398,18 @@ def _open_actions(report):
 def _open_workflows(report):
     items = report["open_workflows"]
     total = sum(n for _, n in items)
-    inner = (_pie("Open workflows", items, config.TREND_COLOURS) if items
-             else '<p class="note">No open workflows.</p>')
-    return _visual(4, "Open workflows", inner, "open-workflows", sub=f"{total} events still open, by type")
+    inner = (_pie("Open workflows", items, PIE_COLOURS)
+             + '<p class="note">Submitted forms and safety events whose workflow is still open. '
+               "PeopleTray's own chart also counts forms issued but not yet submitted.</p>"
+             if items else '<p class="note">No open workflows.</p>')
+    return _visual(4, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
 
 
 def _sheq_actions(report):
     inner = (_bar_chart("SHEQ actions", report["sheq_actions"], SHEQ_COLOURS)
-             + '<p class="note">Assigned is every open action. Due is not yet past its due date. '
-               "Overdue is past it.</p>")
+             + '<p class="note">Open actions for Crown Prince workgroups, as PeopleTray charts them. '
+               "Overdue is past the due date, Due is inside the reminder window, Assigned is the rest."
+               "</p>")
     return _visual(4, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
 
 

@@ -151,7 +151,8 @@ def section_of(page, ident):
 
 def test_open_workflows_is_a_pie(page):
     section = section_of(page, "open-workflows")
-    assert "<svg" in section and "Near Miss" in section
+    assert "<svg" in section and "Take 5" in section and "Safety Events" in section
+    assert "Uniform Order" not in page and "Quixote" not in page
     assert "stroke-dasharray" not in section              # a filled pie, not a ring
 
 
@@ -167,7 +168,7 @@ def test_sheq_actions_bar_graph_has_a_red_overdue_bar(page):
     assert section.count("<rect") == 3
     for label in ("Assigned", "Due", "Overdue"):
         assert f">{label}<" in section
-    assert re.search(r'<rect[^>]*fill="#A4262C"[^>]*><title>Overdue: 1</title>', section)
+    assert re.search(r'<rect[^>]*fill="#D94F32"[^>]*><title>Overdue: 1</title>', section)
 
 
 def test_overdue_history_names_the_actionees(page):

@@ -38,9 +38,15 @@ def person(workgroup, employer="New Murchison Gold Ltd", kind="Full time",
 
 
 def action(status, due=None, completed=None, assignee=FAKE_NAME,
-           required="Quixote to replace the guard", created="2026-09-01T00:00:00"):
+           required="Quixote to replace the guard", created="2026-09-01T00:00:00",
+           workgroup="CPO - Ozland", reminder=2):
     return {"actionStatus": status, "dueDate": due, "completedDate": completed,
-            "assignee": assignee, "requiredAction": required, "createdDate": created}
+            "assignee": assignee, "requiredAction": required, "createdDate": created,
+            "assigneeWorkgroup": workgroup, "reminderDays": reminder}
+
+
+def checklist(name, status="Open"):
+    return {"checklistName": name, "workflowStatus": status, "person": FAKE_NAME, "user": FAKE_NAME}
 
 
 EVENTS = [
@@ -99,5 +105,11 @@ ACTIONS = [
            assignee="Petra ACTIONEE", created="2025-07-20T00:00:00"),
 ]
 
+CHECKLISTS = [
+    checklist("Take 5 "), checklist("Take 5"), checklist("Take 5", "Closed (Saved)"),
+    checklist("Prestart - Light Vehicles"), checklist("Prestart - Light Vehicles", "Closed (Discarded)"),
+    checklist("Uniform Order"),
+]
+
 RAW = {"events": EVENTS, "injuries": INJURIES, "hours": HOURS,
-       "actions": ACTIONS, "people": PEOPLE}
+       "actions": ACTIONS, "people": PEOPLE, "checklists": CHECKLISTS}

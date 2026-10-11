@@ -81,13 +81,14 @@ def test_fetch_all_window_and_keys():
         return feeds(path, params)
 
     raw = fetch.fetch_all(date(2026, 10, 11), get=fake_get)
-    assert set(raw) == {"events", "injuries", "hours", "actions", "people"}
+    assert set(raw) == {"events", "injuries", "hours", "actions", "people", "checklists"}
     window = {"fromDate": "2024-11-01", "toDate": "2026-10-12"}
     assert ("/api/v2/powerbi/events", window) in seen
     assert ("/api/v2/powerbi/eventinjurylist", window) in seen
     assert ("/api/v2/powerbi/exposurehours", window) in seen
     assert ("/api/v2/powerbi/actions", dict(window, fromDate="2020-01-01")) in seen   # full history
     assert ("/api/v2/powerbi/people", None) in seen
+    assert ("/api/v2/powerbi/checklistslite", dict(window, fromDate="2020-01-01")) in seen
 
 
 def test_fetch_all_rejects_a_non_list_response():
@@ -121,4 +122,6 @@ def test_sample_data_uses_the_real_field_names():
 
 
 def test_action_fields_for_the_outstanding_list_are_required():
-    assert {"assignee", "requiredAction", "createdDate"} <= set(fetch.REQUIRED_KEYS["actions"])
+    assert {"assignee", "requiredAction", "createdDate", "reminderDays",
+            "assigneeWorkgroup"} <= set(fetch.REQUIRED_KEYS["actions"])
+    assert set(fetch.REQUIRED_KEYS["checklists"]) == {"checklistName", "workflowStatus"}

@@ -130,8 +130,10 @@ def test_open_action_edge_cases():
     assert listed[-1]["actionee"] == "Unassigned" and listed[-1]["due"] == "–"
 
 
-def test_open_workflows_by_event_type(report):
-    assert report["open_workflows"] == [("Near Miss", 1)]
+def test_open_workflows_by_workflow_type(report):
+    # Open checklists by name plus open safety events; HR forms PeopleTray leaves off are dropped.
+    assert report["open_workflows"] == [("Take 5", 2), ("Prestart - Light Vehicles", 1),
+                                        ("Safety Events", 1)]
 
 
 def test_open_workflows_count_every_open_event_whatever_its_date():
@@ -140,12 +142,12 @@ def test_open_workflows_count_every_open_event_whatever_its_date():
               sample.event(3, "2026-10-06", "GG - Exploration", "Misfire", status="Open Workflow"),
               sample.event(4, "2026-10-06", "CPO - Ozland", "Misfire"),
               sample.event(5, "2026-10-06", "PER - Finance", "Misfire", status="Open Workflow")]
-    raw = dict(sample.RAW, events=events, injuries=[])
-    assert metrics.build_report(raw, sample.TODAY, "x")["open_workflows"] == [("Injury", 2), ("Misfire", 1)]
+    raw = dict(sample.RAW, events=events, injuries=[], checklists=[])
+    assert metrics.build_report(raw, sample.TODAY, "x")["open_workflows"] == [("Safety Events", 3)]
 
 
 def test_sheq_actions_assigned_due_and_overdue(report):
-    assert report["sheq_actions"] == [("Assigned", 2), ("Due", 1), ("Overdue", 1)]
+    assert report["sheq_actions"] == [("Assigned", 1), ("Due", 0), ("Overdue", 1)]
 
 
 def test_overdue_history_ranks_actionees(report):
@@ -176,3 +178,32 @@ def test_overdue_history_rules():
 def test_overdue_history_keeps_the_ten_worst():
     actions = [sample.action("Open", due="2026-10-01T00:00:00", assignee=f"Person {i:02d}") for i in range(12)]
     assert len(metrics.build_overdue_history(actions, sample.TODAY)) == 10
+
+
+def test_sheq_actions_follow_peopletrays_chart():
+    A = sample.action
+    actions = [
+        A("Open", due="2026-10-23T00:00:00"),                       # outside the reminder window
+        A("Open", due="2026-10-14T00:00:00", reminder=2),           # 3 days out, reminder 2
+        A("Open", due="2026-10-13T00:00:00", reminder=2),           # inside the window
+        A("Open", due="2026-10-11T00:00:00", reminder=None),        # due today
+        A("Open", due="2026-10-10T00:00:00"),                       # overdue
+        A("Open", due=None),                                        # no due date
+        A("Open", due="2026-09-30T00:00:00", workgroup="GG - Exploration"),      # not on PeopleTray's chart
+        A("Open", due="2026-09-28T00:00:00", workgroup="Drilling Contractors"),
+        A("Closed complete", due="2026-09-01T00:00:00", completed="2026-09-20T00:00:00"),
+    ]
+    assert metrics.build_sheq_actions(actions, sample.TODAY) == [("Assigned", 3), ("Due", 2), ("Overdue", 1)]
+
+
+def test_open_workflows_keep_the_nine_biggest_types():
+    lists = [sample.checklist(f"Form {i:02d}") for i in range(12) for _ in range(12 - i)]
+    raw = dict(sample.RAW, events=[], injuries=[], checklists=lists)
+    slices = metrics.build_report(raw, sample.TODAY, "x")["open_workflows"]
+    assert len(slices) == 10 and slices[0] == ("Form 00", 12)
+    assert slices[-1] == ("Other", 3 + 2 + 1)
+
+
+def test_report_builds_without_a_checklist_feed():
+    raw = {k: v for k, v in sample.RAW.items() if k != "checklists"}
+    assert metrics.build_report(raw, sample.TODAY, "x")["open_workflows"] == [("Safety Events", 1)]

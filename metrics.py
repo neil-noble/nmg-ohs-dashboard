@@ -322,20 +322,50 @@ def build_open_actions(actions, today):
     return [entry for _, _, entry in listed]
 
 
-def build_open_workflows(events, keep=5):
-    """Every event whose workflow is still open, whatever its date, by event type."""
-    tally = Counter("Injury" if e["injury_class"] else e["row"] for e in events if e["open"])
+def build_open_workflows(events, checklists, keep=9):
+    """Open workflows by type, the way PeopleTray's own chart slices them.
+
+    Open checklists by name, plus every open event as "Safety Events". The API only returns
+    submitted checklists, so forms issued but not yet submitted are missing from these counts.
+    """
+    tally = Counter()
+    for c in checklists:
+        name = " ".join(_text(c.get("checklistName")).split())
+        if _text(c.get("workflowStatus")).lower() == "open" and name not in config.WORKFLOWS_NOT_CHARTED:
+            tally[name or "Unnamed workflow"] += 1
+    open_events = sum(1 for e in events if e["open"])
+    if open_events:
+        tally[config.SAFETY_EVENTS_WORKFLOW] = open_events
     ranked = sorted(tally.items(), key=lambda item: (-item[1], item[0]))
     if len(ranked) > keep + 1:
         ranked = ranked[:keep] + [("Other", sum(n for _, n in ranked[keep:]))]
     return ranked
 
 
-def build_sheq_actions(open_actions):
-    """Assigned = every open action; Due = not yet past its due date; Overdue = past it."""
-    overdue = sum(1 for a in open_actions if a["overdue"])
-    due = sum(1 for a in open_actions if not a["overdue"] and a["due"] != "–")
-    return [("Assigned", len(open_actions)), ("Due", due), ("Overdue", overdue)]
+def build_sheq_actions(actions, today):
+    """PeopleTray's "SHEQ Actions" chart, reproduced from the actions feed.
+
+    Its rule is not documented; this one reproduced its 5 / 1 / 3 on 2026-10-11: open actions
+    whose actionee is in a Mining workgroup, split into Overdue (past the due date), Due
+    (inside the action's reminder window) and Assigned (everything else).
+    """
+    assigned = due = overdue = 0
+    for a in actions:
+        if _text(a.get("actionStatus")).lower() != "open":
+            continue
+        if config.bucket(a.get("assigneeWorkgroup")) != config.MINING:
+            continue
+        due_day = parse_day(a.get("dueDate"))
+        days_left = (due_day - today).days if due_day else None
+        if days_left is None:
+            assigned += 1
+        elif days_left < 0:
+            overdue += 1
+        elif days_left <= int(a.get("reminderDays") or 0):
+            due += 1
+        else:
+            assigned += 1
+    return [("Assigned", assigned), ("Due", due), ("Overdue", overdue)]
 
 
 def build_overdue_history(actions, today, keep=10):
@@ -383,8 +413,8 @@ def build_report(raw, today, generated):
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),
         "open_actions": open_actions,
-        "open_workflows": build_open_workflows(events),
-        "sheq_actions": build_sheq_actions(open_actions),
+        "open_workflows": build_open_workflows(events, raw.get("checklists", [])),
+        "sheq_actions": build_sheq_actions(raw["actions"], today),
         "overdue_history": build_overdue_history(raw["actions"], today),
         "overdue_since": _since(raw["actions"]),
         "unmapped": sorted(issues["unmapped"]),

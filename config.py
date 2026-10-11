@@ -86,6 +86,11 @@ def event_row(event_type):
     return name or "Unspecified event type"
 
 
+# PeopleTray's own "Open Workflows" chart names open safety events like this, and leaves
+# these HR forms off it.
+SAFETY_EVENTS_WORKFLOW = "Safety Events"
+WORKFLOWS_NOT_CHARTED = ("Uniform Order", "Medical Declaration Form")
+
 NAVY, RIVER, GOLD, PALE_GOLD = "#083045", "#55848A", "#927128", "#B19045"
 SAND, COOL_GREY, BLACK = "#F1DCAA", "#DBDBD3", "#333334"
 SERIES_COLOURS = {MINING: NAVY, EXPLORATION: GOLD}

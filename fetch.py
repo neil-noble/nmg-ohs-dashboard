@@ -10,6 +10,7 @@ PATHS = {
     "hours": "/api/v2/powerbi/exposurehours",
     "actions": "/api/v2/powerbi/actions",
     "people": "/api/v2/powerbi/people",
+    "checklists": "/api/v2/powerbi/checklistslite",
 }
 _UNDATED = ("people",)
 # Feeds that are never legitimately empty; an empty one means PeopleTray is not answering properly.
@@ -23,7 +24,8 @@ REQUIRED_KEYS = {
                  "injuryBodyLocation", "injuryNature", "injuryMechanism"),
     "hours": ("groupName", "year", "month", "exposureHours"),
     "actions": ("actionStatus", "dueDate", "completedDate", "assignee", "requiredAction",
-                "createdDate"),
+                "createdDate", "reminderDays", "assigneeWorkgroup"),
+    "checklists": ("checklistName", "workflowStatus"),
     "people": ("workGroup", "employer", "emplpyeeType", "dateCommenced", "dateCeased"),
 }
 
@@ -33,9 +35,10 @@ def fetch_all(today, get=peopletray.get):
     first = add_months(reporting_month(today), -22)
     window = {"fromDate": f"{first[0]}-{first[1]:02d}-01",
               "toDate": (today + timedelta(days=1)).isoformat()}
-    # Actions are fetched in full: the overdue history ranks actionees over all time.
+    # Actions and checklists are fetched in full: the overdue history ranks actionees over
+    # all time, and a workflow can sit open for longer than the reporting window.
     windows = {name: window for name in PATHS}
-    windows["actions"] = dict(window, fromDate="2020-01-01")
+    windows["actions"] = windows["checklists"] = dict(window, fromDate="2020-01-01")
     raw = {name: get(path, None if name in _UNDATED else windows[name]) for name, path in PATHS.items()}
     for name, rows in raw.items():
         # An error object or an empty answer with HTTP 200 must not become an empty dashboard.

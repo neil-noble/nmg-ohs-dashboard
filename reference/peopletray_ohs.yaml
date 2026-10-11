@@ -24,3 +24,19 @@ fields_the_dashboard_reads:   # verified in the live feeds 2026-10-11; fetch.REQ
   actions: [actionStatus, dueDate, completedDate]
   people: [workGroup, employer, emplpyeeType, dateCommenced, dateCeased]
 eventinjurylist_rows_per_event: can be more than one (one per injured person) - classify by the most severe
+
+# Added 2026-10-11 while matching PeopleTray's own dashboard charts
+checklists:
+  endpoint: /api/v2/powerbi/checklistslite   # fromDate, toDate; 2,316 rows all-time, about 5 s, unpaginated
+  same_rows_as: /api/v2/reporting/checklists   # paginated, 100 per page
+  workflowStatus: [Open, "Closed (Saved)", "Closed (Discarded)"]
+  limit: only SUBMITTED checklists are returned. PeopleTray's "Open Workflows" chart also counts forms issued but
+    not yet submitted (Area Inspection, CCV - *, most Witness Statements), so it cannot be reproduced exactly from
+    the API. 2026-10-11 - PeopleTray 107/18/17/11/10/9/8/7 vs API 103/18/17/1/8/7/7/0.
+  not_on_peopletrays_chart: [Uniform Order, Medical Declaration Form]
+  dead_endpoints_404: [/api/v2/powerbi/customerchecklists, /api/v2/checklisttemplates, /api/workflowtypes, /api/WorkflowMenuTree]
+sheq_actions_chart:
+  inferred_rule: open actions whose assigneeWorkgroup is a Mining (CPO / Contractors) workgroup; Overdue = past dueDate,
+    Due = within reminderDays of dueDate, Assigned = the rest
+  evidence: reproduced PeopleTray's 5 / 1 / 3 on 2026-10-11; the two open actions it leaves out were GG - Exploration
+    and Drilling Contractors
