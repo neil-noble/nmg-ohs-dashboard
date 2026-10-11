@@ -17,3 +17,10 @@ traps:
   - exposure hours cannot be reconciled to Neil's old spreadsheet (its Exploration 5,277 is not a multiple of 6)
 event_types_seen: [Property Damage / Loss, Injury, Procedural Compliance, Near Miss, Production Loss, Non Work Related, Misfire, Violence, Security, Business / Operational Interruption, Community / Heritage]
 nmg_head_count_2026_10_11: {Mining: 22, Exploration: 16, rule: "employer == New Murchison Gold Ltd and emplpyeeType != Contractor, Perth excluded"}
+fields_the_dashboard_reads:   # verified in the live feeds 2026-10-11; fetch.REQUIRED_KEYS enforces them on every build
+  events: [eventId, eventDateTime, eventDate, workGroup, eventType, eventSubType, injuryType, eventStatus]
+  eventinjurylist: [eventId, injuryType, eventSubTypeName, returnWorkDate, injuryBodyLocation, injuryNature, injuryMechanism]
+  exposurehours: [groupName, year, month, exposureHours]
+  actions: [actionStatus, dueDate, completedDate]
+  people: [workGroup, employer, emplpyeeType, dateCommenced, dateCeased]
+eventinjurylist_rows_per_event: can be more than one (one per injured person) - classify by the most severe

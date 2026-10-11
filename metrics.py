@@ -8,21 +8,40 @@ from periods import (add_months, fy_start, long_label, month_end, month_range, p
 _COUNTED_CLASSES = tuple(code for code, _ in config.INJURY_CLASSES)
 LTIFR_ROW = "Lost Time Injury Freq Rate (LTIFR)"
 TRIFR_ROW = "Total Recordable Injury Freq Rate (TRIFR)"
+# Most severe first: an event with several injured people is classed by its worst injury.
+_SEVERITY = _COUNTED_CLASSES + config.NOT_COUNTED
 
 
 def new_issues():
     """Things left out of the figures that a person needs to hear about."""
-    return {"unmapped": set(), "undated": 0}
+    return {"unmapped": set(), "undated": 0, "unclassified": 0}
 
 
 def _text(value):
     return (value or "").strip()
 
 
+def _first(details, field):
+    return next((_text(d.get(field)) for d in details if _text(d.get(field))), "")
+
+
+def _injury_class(event, details):
+    """The event's own injury type, else the worst one on its injury rows, else its sub-type."""
+    own = config.injury_code(event.get("injuryType"))
+    if own:
+        return own
+    listed = [code for code in (config.injury_code(d.get("injuryType")) for d in details) if code]
+    if listed:
+        return min(listed, key=_SEVERITY.index)
+    return config.classify_injury(None, _text(event.get("eventSubType"))
+                                  or _first(details, "eventSubTypeName"))
+
+
 def normalise_events(events, injuries, issues):
-    detail_by_id = {}
+    # The injury list holds one row per injured person, so an event can have several.
+    details_by_id = {}
     for detail in injuries:
-        detail_by_id.setdefault(detail.get("eventId"), detail)
+        details_by_id.setdefault(str(detail.get("eventId")), []).append(detail)
     out = []
     for ev in events:
         which = config.bucket(ev.get("workGroup"))
@@ -35,14 +54,14 @@ def normalise_events(events, injuries, issues):
         if day is None:
             issues["undated"] += 1
             continue
-        detail = detail_by_id.get(ev.get("eventId"), {})
+        details = details_by_id.get(str(ev.get("eventId")), [])
         injury_class = None
         if _text(ev.get("eventType")) == config.INJURY_TYPE:
-            injury_class = config.classify_injury(
-                _text(ev.get("injuryType")) or detail.get("injuryType"),
-                _text(ev.get("eventSubType")) or detail.get("eventSubTypeName"))
+            injury_class = _injury_class(ev, details)
             if injury_class in config.NOT_COUNTED:
                 continue
+            if injury_class == config.UNCLASSIFIED:
+                issues["unclassified"] += 1
             row = injury_class
         else:
             row = config.event_row(ev.get("eventType"))
@@ -52,10 +71,11 @@ def normalise_events(events, injuries, issues):
             "id": ev.get("eventId"), "day": day, "ym": (day.year, day.month),
             "bucket": which, "row": row, "injury_class": injury_class,
             "open": "open" in _text(ev.get("eventStatus")).lower(),
-            "return_day": parse_day(detail.get("returnWorkDate")),
-            "body": _text(detail.get("injuryBodyLocation")),
-            "nature": _text(detail.get("injuryNature")),
-            "mechanism": _text(detail.get("injuryMechanism")),
+            "return_day": max(filter(None, (parse_day(d.get("returnWorkDate")) for d in details)),
+                              default=None),
+            "body": _first(details, "injuryBodyLocation"),
+            "nature": _first(details, "injuryNature"),
+            "mechanism": _first(details, "injuryMechanism"),
         })
     return out
 
@@ -107,7 +127,7 @@ def frequency_rates(events, hours, bucket, month):
     return rate(recordable, worked), rate(lost_time, worked)
 
 
-def head_count(people, bucket, as_at):
+def head_count(people, bucket, as_at, issues=None):
     """NMG's own employees, no contractors, employed on the as_at day."""
     total = 0
     for p in people:
@@ -115,14 +135,16 @@ def head_count(people, bucket, as_at):
             continue
         if _text(p.get("emplpyeeType")) == "Contractor":     # PeopleTray's spelling
             continue
-        if config.bucket(p.get("workGroup")) != bucket:
-            continue
         commenced, ceased = parse_day(p.get("dateCommenced")), parse_day(p.get("dateCeased"))
         if commenced and commenced > as_at:
             continue
         if ceased and ceased <= as_at:
             continue
-        total += 1
+        which = config.bucket(p.get("workGroup"))
+        if which == config.UNMAPPED and issues is not None:
+            issues["unmapped"].add(_text(p.get("workGroup")) or "(no workgroup)")
+        if which == bucket:
+            total += 1
     return total
 
 
@@ -140,7 +162,7 @@ def _lost_workdays(events, bucket, months):
     return fmt_count(days)
 
 
-def build_table(events, hours, people, month):
+def build_table(events, hours, people, month, issues=None):
     periods = ({month}, set(month_range(fy_start(month), month)))
 
     def cells(value):
@@ -174,7 +196,7 @@ def build_table(events, hours, people, month):
 
     as_at = month_end(month)
     table.append(line("NMG Head Count", cells(
-        lambda b, _, fytd: "NA" if fytd else fmt_count(head_count(people, b, as_at)))))
+        lambda b, _, fytd: "NA" if fytd else fmt_count(head_count(people, b, as_at, issues)))))
     table.append(line("Total Person Hours Worked", cells(
         lambda b, months, _: fmt_count(round(hours_sum(hours, b, months)))), bold=True))
     return table
@@ -264,15 +286,17 @@ def build_report(raw, today, generated):
     issues = new_issues()
     events = normalise_events(raw["events"], raw["injuries"], issues)
     hours = normalise_hours(raw["hours"], issues)
+    table = build_table(events, hours, raw["people"], month, issues)     # adds to issues
     return {
         "month_label": long_label(month),
         "generated": generated,
         "kpis": build_kpis(events, hours, month, today),
-        "table": build_table(events, hours, raw["people"], month),
+        "table": table,
         "trend": build_trend(events, hours, month),
         "event_trend": build_event_trend(events, month),
         "injury_analysis": build_injury_analysis(events, month),
         "status": build_status(events, raw["actions"], month, today),
         "unmapped": sorted(issues["unmapped"]),
         "undated": issues["undated"],
+        "unclassified": issues["unclassified"],
     }

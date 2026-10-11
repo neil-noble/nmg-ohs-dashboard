@@ -1,4 +1,5 @@
 """The rules Neil set for the NMG OHS dashboard. No I/O and no arithmetic here."""
+import re
 
 FY_START_MONTH = 7
 NMG_EMPLOYER = "New Murchison Gold Ltd"
@@ -45,12 +46,16 @@ _SUBTYPE_CLASS = {
 }
 
 
+def injury_code(injury_type):
+    """'FAI (First Aid Injury) ' -> 'FAI'; None when the text does not start with a known code."""
+    match = re.match(r"[A-Za-z]+", (injury_type or "").strip())
+    code = match.group().upper() if match else ""
+    return code if code in _INJURY_CODES else None
+
+
 def classify_injury(injury_type, sub_type):
     """PeopleTray's injury type decides; a blank or unknown one falls back to the sub-type."""
-    code = (injury_type or "").strip().split(" ")[0].upper()
-    if code in _INJURY_CODES:
-        return code
-    return _SUBTYPE_CLASS.get((sub_type or "").strip().lower(), UNCLASSIFIED)
+    return injury_code(injury_type) or _SUBTYPE_CLASS.get((sub_type or "").strip().lower(), UNCLASSIFIED)
 
 
 NEAR_MISS_ROW = "Near Miss"

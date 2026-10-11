@@ -56,12 +56,29 @@ def test_get_gives_up_after_4_attempts(monkeypatch):
     assert len(calls) == 4
 
 
+def full_row(name):
+    return {key: None for key in fetch.REQUIRED_KEYS[name]}
+
+
+def fake_feeds(overrides=None):
+    by_path = {path: name for name, path in fetch.PATHS.items()}
+
+    def fake_get(path, params=None):
+        name = by_path[path]
+        if overrides and name in overrides:
+            return overrides[name]
+        return [full_row(name)]
+
+    return fake_get
+
+
 def test_fetch_all_window_and_keys():
     seen = []
+    feeds = fake_feeds()
 
     def fake_get(path, params=None):
         seen.append((path, params))
-        return [{"path": path}]
+        return feeds(path, params)
 
     raw = fetch.fetch_all(date(2026, 10, 11), get=fake_get)
     assert set(raw) == {"events", "injuries", "hours", "actions", "people"}
@@ -74,8 +91,30 @@ def test_fetch_all_window_and_keys():
 
 
 def test_fetch_all_rejects_a_non_list_response():
-    def fake_get(path, params=None):
-        return {"message": "An error has occurred."} if path.endswith("exposurehours") else []
-
+    feeds = fake_feeds({"hours": {"message": "An error has occurred."}})
     with pytest.raises(ValueError, match="hours"):
-        fetch.fetch_all(date(2026, 10, 11), get=fake_get)
+        fetch.fetch_all(date(2026, 10, 11), get=feeds)
+
+
+@pytest.mark.parametrize("name", ["events", "hours", "people"])
+def test_fetch_all_rejects_an_empty_core_feed(name):
+    with pytest.raises(ValueError, match=name):
+        fetch.fetch_all(date(2026, 10, 11), get=fake_feeds({name: []}))
+
+
+def test_fetch_all_allows_no_actions_and_no_injury_rows():
+    raw = fetch.fetch_all(date(2026, 10, 11), get=fake_feeds({"actions": [], "injuries": []}))
+    assert raw["actions"] == [] and raw["injuries"] == []
+
+
+def test_fetch_all_rejects_a_feed_missing_a_field_the_dashboard_reads():
+    row = full_row("injuries")
+    del row["returnWorkDate"]
+    with pytest.raises(ValueError, match="returnWorkDate"):
+        fetch.fetch_all(date(2026, 10, 11), get=fake_feeds({"injuries": [row]}))
+
+
+def test_sample_data_uses_the_real_field_names():
+    from tests import sample
+    for name, rows in sample.RAW.items():
+        assert set(fetch.REQUIRED_KEYS[name]) <= set(rows[0]), name

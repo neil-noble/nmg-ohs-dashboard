@@ -12,7 +12,8 @@ def report():
 
 def test_report_keys(report):
     assert set(report) == {"month_label", "generated", "kpis", "table", "trend", "event_trend",
-                           "injury_analysis", "status", "unmapped", "undated"}
+                           "injury_analysis", "status", "unmapped", "undated",
+                           "unclassified"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -86,3 +87,11 @@ def test_empty_feeds_build_a_report():
     assert report["kpis"][config.MINING][0] == ("TRIFR", "NA")
     assert report["injury_analysis"][0] == ("Body location", [])
     assert report["status"]["events_open"] == 0
+
+
+def test_report_carries_unclassified_count_and_head_count_workgroups():
+    raw = {"events": [sample.event(1, "2026-09-03", "CPO - Ozland", "Injury", "", "")],
+           "injuries": [], "hours": [], "actions": [], "people": [sample.person("Processing - Mill")]}
+    report = metrics.build_report(raw, sample.TODAY, "x")
+    assert report["unclassified"] == 1
+    assert report["unmapped"] == ["Processing - Mill"]

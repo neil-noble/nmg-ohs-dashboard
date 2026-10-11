@@ -21,14 +21,26 @@ def build(raw, today, generated, out_path=OUTPUT):
     return report
 
 
+def warnings(report):
+    """One line for everything the figures leave out, for the workflow log."""
+    lines = []
+    if report["unmapped"]:
+        names = ", ".join(" ".join(name.split()) for name in report["unmapped"])
+        lines.append(f"Unmapped workgroups left out of the figures: {names}")
+    if report["undated"]:
+        lines.append(f"{report['undated']} events have no date and were not counted")
+    if report["unclassified"]:
+        lines.append(f"{report['unclassified']} injuries have no injury type or recognised "
+                     "sub-type; they are not in TRIFR or LTIFR")
+    return lines
+
+
 def main():
     today = periods.today_perth()
     report = build(fetch.fetch_all(today), today, periods.now_label())
     print(f"Built {OUTPUT} for {report['month_label']}")
-    if report["unmapped"]:
-        print(f"::warning::Unmapped workgroups left out of the figures: {', '.join(report['unmapped'])}")
-    if report["undated"]:
-        print(f"::warning::{report['undated']} events have no date and were not counted")
+    for line in warnings(report):
+        print(f"::warning::{line}")
 
 
 if __name__ == "__main__":

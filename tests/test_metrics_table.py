@@ -177,3 +177,46 @@ def test_empty_data_renders_dashes_and_na_without_dividing_by_zero():
     assert row(table, "Lost Time Injury Freq Rate (LTIFR)") == ["NA", "NA", "NA", "NA"]
     assert row(table, "Total Person Hours Worked") == ["–", "–", "–", "–"]
     assert row(table, "NMG Head Count") == ["–", "NA", "–", "NA"]
+
+
+def test_most_severe_injury_row_wins_when_an_event_has_several():
+    ev = sample.event(1, "2026-09-01", "CPO - Ozland", "Injury", "First Aid Injury", "")
+    rows = [sample.injury(1),
+            sample.injury("1", injuryType="LTI (Lost Time Injury) ",
+                          returnWorkDate="2026-09-20T00:00:00", injuryBodyLocation="Back")]
+    event = metrics.normalise_events([ev], rows, metrics.new_issues())[0]
+    assert event["injury_class"] == "LTI"
+    assert event["return_day"] == date(2026, 9, 20)
+    assert event["body"] == "Back"
+
+
+def test_unknown_event_injury_type_does_not_block_the_injury_list():
+    ev = sample.event(1, "2026-09-01", "CPO - Ozland", "Injury", "No Treatment Required", "Pending review")
+    rows = [sample.injury(1, injuryType="MTI(Medical Treatment Injury)")]
+    assert metrics.normalise_events([ev], rows, metrics.new_issues())[0]["injury_class"] == "MTI"
+
+
+def test_trifr_counts_restricted_and_medical_injuries_but_ltifr_does_not():
+    issues = metrics.new_issues()
+    events = metrics.normalise_events([
+        sample.event(1, "2026-09-01", "CPO - Ozland", "Injury", "Lost Time Injury"),
+        sample.event(2, "2026-09-02", "CPO - Ozland", "Injury", "Restricted Work Injury"),
+        sample.event(3, "2026-09-03", "CPO - Ozland", "Injury", "Medical Treatment Injury"),
+        sample.event(4, "2026-09-04", "CPO - Ozland", "Injury", "First Aid Injury"),
+    ], [], issues)
+    hours = metrics.normalise_hours([sample.hours("CPO - Ozland", 2026, 9, 1_000_000.0)], issues)
+    assert metrics.frequency_rates(events, hours, config.MINING, sample.MONTH) == (3.0, 1.0)
+
+
+def test_head_count_reports_nmg_employees_in_unmapped_workgroups():
+    issues = metrics.new_issues()
+    people = [sample.person("Processing - Mill"), sample.person(None),
+              sample.person("Shutdown Crew", employer="Another Company")]
+    assert metrics.head_count(people, config.MINING, date(2026, 9, 30), issues) == 0
+    assert issues["unmapped"] == {"Processing - Mill", "(no workgroup)"}
+
+
+def test_unclassified_injuries_are_counted_as_an_issue():
+    issues = metrics.new_issues()
+    metrics.normalise_events([sample.event(1, "2026-09-03", "CPO - Ozland", "Injury", "", "")], [], issues)
+    assert issues["unclassified"] == 1
