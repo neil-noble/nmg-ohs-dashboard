@@ -1,5 +1,6 @@
 """The report dict as one self-contained HTML page, laid out like a Power BI report:
 a grey canvas carrying white "visuals" on a 12-column grid. No data logic here."""
+import math
 from html import escape
 
 import config
@@ -85,6 +86,12 @@ color:var(--muted)}
 .pill{display:inline-block;border-radius:10px;padding:1px 9px;font-size:11.5px;font-weight:700;
 background:var(--grey-tint);color:var(--ink)}
 .pill.late{background:#FDE7E9;color:#A4262C}
+.bars3{max-width:420px;margin:0 auto}
+svg .cat{font-size:12px;fill:var(--ink)}
+svg .val{font-size:14px;font-weight:700}
+.rank{display:grid;grid-template-columns:minmax(90px,38%) 1fr;gap:6px 8px;align-items:center;font-size:12px}
+.rank .brow i{border-radius:0}
+.rank .brow em{font-weight:400;color:var(--muted);white-space:nowrap;margin-left:2px}
 details{margin-top:8px;font-size:12px}
 details summary{cursor:pointer;color:var(--river)}
 footer{grid-column:1/-1;color:var(--muted);font-size:11px;padding:2px 2px 0}
@@ -97,7 +104,10 @@ footer p{margin:3px 0}
 
 W, H, LEFT, RIGHT, TOP, BOTTOM = 560, 250, 36, 44, 16, 28
 DONUT_R = 15.915          # circumference 100, so dash lengths are percentages
-OPEN_CLOSED_COLOURS = ("#A4262C", config.RIVER)
+RED = "#A4262C"
+OPEN_CLOSED_COLOURS = (RED, config.RIVER)
+SHEQ_COLOURS = (config.NAVY, config.RIVER, RED)          # assigned, due, overdue
+LATE_COLOUR = "#8498A2"
 
 
 def nice_max(value):
@@ -176,7 +186,7 @@ def _donut(title, items, colours, caption):
     total = sum(n for _, n in items)
     ring = (f'<circle cx="21" cy="21" r="{DONUT_R}" fill="none" stroke="{config.COOL_GREY}" '
             'stroke-width="6"/>')
-    rows, drawn = [], 0.0
+    drawn = 0.0
     for (name, n), colour in zip(items, colours):
         share = n / total * 100 if total else 0.0
         if n:
@@ -184,12 +194,54 @@ def _donut(title, items, colours, caption):
                      f'stroke-width="6" stroke-dasharray="{share:.3f} {100 - share:.3f}" '
                      f'stroke-dashoffset="{125 - drawn:.3f}"><title>{escape(name)}: {n}</title></circle>')
             drawn += share
-        rows.append(f'<li><i class="dot" style="background:{colour}"></i>'
-                    f'<span class="name">{escape(name)}</span><b>{n}</b><em>{share:.0f}%</em></li>')
     svg = (f'<svg viewBox="0 0 42 42" role="img" aria-label="{escape(title)}">{ring}'
            f'<text class="donut-total" x="21" y="22.5" text-anchor="middle">{total}</text>'
            f'<text class="donut-cap" x="21" y="27" text-anchor="middle">{escape(caption)}</text></svg>')
-    return f'<div class="donut">{svg}<ul>{"".join(rows)}</ul></div>'
+    return f'<div class="donut">{svg}<ul>{_share_rows(items, colours, total)}</ul></div>'
+
+
+def _share_rows(items, colours, total):
+    return "".join(
+        f'<li><i class="dot" style="background:{colour}"></i><span class="name">{escape(name)}</span>'
+        f"<b>{n}</b><em>{(n / total * 100 if total else 0):.0f}%</em></li>"
+        for (name, n), colour in zip(items, colours))
+
+
+def _pie(title, items, colours):
+    """A filled pie with a legend carrying counts and shares. Assumes at least one item."""
+    total = sum(n for _, n in items)
+    wedges, start = "", 0.0
+    for (name, n), colour in zip(items, colours):
+        share = n / total
+        tip = f"<title>{escape(name)}: {n}</title>"
+        if share > 0.9999:
+            wedges += f'<circle cx="21" cy="21" r="19" fill="{colour}">{tip}</circle>'
+        elif n:
+            a0, a1 = (2 * math.pi * turn - math.pi / 2 for turn in (start, start + share))
+            wedges += (f'<path d="M21 21 L{21 + 19 * math.cos(a0):.3f} {21 + 19 * math.sin(a0):.3f} '
+                       f'A19 19 0 {int(share > 0.5)} 1 {21 + 19 * math.cos(a1):.3f} '
+                       f'{21 + 19 * math.sin(a1):.3f} Z" fill="{colour}" stroke="#fff" '
+                       f'stroke-width="0.4">{tip}</path>')
+        start += share
+    svg = f'<svg viewBox="0 0 42 42" role="img" aria-label="{escape(title)}">{wedges}</svg>'
+    return f'<div class="donut">{svg}<ul>{_share_rows(items, colours, total)}</ul></div>'
+
+
+def _bar_chart(title, items, colours):
+    """Vertical bars with the value above each and its name below."""
+    width, right = 360, 12
+    parts, y = _axes(nice_max(max((n for _, n in items), default=0)), width, right)
+    slot = (width - LEFT - right) / max(len(items), 1)
+    bar = slot * 0.5
+    for i, ((name, n), colour) in enumerate(zip(items, colours)):
+        centre = LEFT + slot * (i + 0.5)
+        parts.append(f'<rect x="{centre - bar / 2:.1f}" y="{y(n):.1f}" width="{bar:.1f}" '
+                     f'height="{y(0) - y(n):.1f}" fill="{colour}"><title>{escape(name)}: {n}</title></rect>'
+                     f'<text class="val" x="{centre:.1f}" y="{y(n) - 5:.1f}" text-anchor="middle" '
+                     f'fill="{colour}">{n}</text>'
+                     f'<text class="cat" x="{centre:.1f}" y="{H - 8}" text-anchor="middle">{escape(name)}</text>')
+    return (f'<div class="bars3"><svg viewBox="0 0 {width} {H}" role="img" '
+            f'aria-label="{escape(title)}">{"".join(parts)}</svg></div>')
 
 
 def _bar(value, longest, colour):
@@ -340,6 +392,41 @@ def _open_actions(report):
                    sub=f'{len(report["open_actions"])} open, most overdue first')
 
 
+def _open_workflows(report):
+    items = report["open_workflows"]
+    total = sum(n for _, n in items)
+    inner = (_pie("Open workflows", items, config.TREND_COLOURS) if items
+             else '<p class="note">No open workflows.</p>')
+    return _visual(4, "Open workflows", inner, "open-workflows", sub=f"{total} events still open, by type")
+
+
+def _sheq_actions(report):
+    inner = (_bar_chart("SHEQ actions", report["sheq_actions"], SHEQ_COLOURS)
+             + '<p class="note">Assigned is every open action. Due is not yet past its due date. '
+               "Overdue is past it.</p>")
+    return _visual(4, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
+
+
+def _overdue_history(report):
+    people = report["overdue_history"]
+    longest = max((p["late"] + p["still"] for p in people), default=0)
+    rows = ""
+    for p in people:
+        total = p["late"] + p["still"]
+        bars = "".join(
+            f'<i style="width:calc((100% - 74px) * {n / longest:.3f});background:{colour}"></i>'
+            for n, colour in ((p["late"], LATE_COLOUR), (p["still"], RED)) if n)
+        rows += (f'<span>{escape(p["actionee"])}</span><div class="brow">{bars}'
+                 f'<em>{total} of {p["assigned"]}</em></div>')
+    inner = (f'<div class="rank">{rows}</div>'
+             + _legend([("Closed late", LATE_COLOUR), ("Still overdue", RED)])
+             + '<p class="note">Actions that went past their due date, out of all actions assigned '
+               "to that person.</p>"
+             if people else '<p class="note">No actions have gone overdue.</p>')
+    since = f'all actions since {report["overdue_since"]}' if report["overdue_since"] else "all actions"
+    return _visual(4, "Most overdue actions by actionee", inner, "overdue-history", sub=since)
+
+
 def _footer():
     return ("<footer><p><strong>Source:</strong> PeopleTray. Rebuilt daily.</p>"
             "<p><strong>Mining:</strong> all CPO workgroups, Contractors &ndash; Local and "
@@ -352,7 +439,8 @@ def _footer():
 def render(report):
     side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}{_actions(report)}</div>'
     main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
-                    _event_trend(report), _event_status(report), _open_actions(report),
+                    _event_trend(report), _event_status(report), _open_workflows(report),
+                    _sheq_actions(report), _overdue_history(report), _open_actions(report),
                     _injuries(report), _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'

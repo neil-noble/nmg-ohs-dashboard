@@ -38,9 +38,9 @@ def person(workgroup, employer="New Murchison Gold Ltd", kind="Full time",
 
 
 def action(status, due=None, completed=None, assignee=FAKE_NAME,
-           required="Quixote to replace the guard"):
+           required="Quixote to replace the guard", created="2026-09-01T00:00:00"):
     return {"actionStatus": status, "dueDate": due, "completedDate": completed,
-            "assignee": assignee, "requiredAction": required}
+            "assignee": assignee, "requiredAction": required, "createdDate": created}
 
 
 EVENTS = [
@@ -93,8 +93,10 @@ ACTIONS = [
     action("Open", due="2026-11-01T00:00:00", assignee="Petra  ACTIONEE",
            required="Review the ore mark-up\r\nprocedure"),
     action("Open", due="2026-10-02T00:00:00", assignee="Otto OWNER", required="Fit the <new> guard"),
-    action("Closed complete", due="2026-09-10T00:00:00", completed="2026-09-15T02:00:00"),
-    action("Closed complete", due="2026-08-01T00:00:00", completed="2026-08-01T02:00:00"),
+    action("Closed complete", due="2026-09-10T00:00:00", completed="2026-09-15T02:00:00",
+           assignee="Otto OWNER"),
+    action("Closed complete", due="2026-08-01T00:00:00", completed="2026-08-01T02:00:00",
+           assignee="Petra ACTIONEE", created="2025-07-20T00:00:00"),
 ]
 
 RAW = {"events": EVENTS, "injuries": INJURIES, "hours": HOURS,

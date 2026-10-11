@@ -22,7 +22,8 @@ REQUIRED_KEYS = {
     "injuries": ("eventId", "injuryType", "eventSubTypeName", "returnWorkDate",
                  "injuryBodyLocation", "injuryNature", "injuryMechanism"),
     "hours": ("groupName", "year", "month", "exposureHours"),
-    "actions": ("actionStatus", "dueDate", "completedDate", "assignee", "requiredAction"),
+    "actions": ("actionStatus", "dueDate", "completedDate", "assignee", "requiredAction",
+                "createdDate"),
     "people": ("workGroup", "employer", "emplpyeeType", "dateCommenced", "dateCeased"),
 }
 
@@ -32,7 +33,10 @@ def fetch_all(today, get=peopletray.get):
     first = add_months(reporting_month(today), -22)
     window = {"fromDate": f"{first[0]}-{first[1]:02d}-01",
               "toDate": (today + timedelta(days=1)).isoformat()}
-    raw = {name: get(path, None if name in _UNDATED else window) for name, path in PATHS.items()}
+    # Actions are fetched in full: the overdue history ranks actionees over all time.
+    windows = {name: window for name in PATHS}
+    windows["actions"] = dict(window, fromDate="2020-01-01")
+    raw = {name: get(path, None if name in _UNDATED else windows[name]) for name, path in PATHS.items()}
     for name, rows in raw.items():
         # An error object or an empty answer with HTTP 200 must not become an empty dashboard.
         if not isinstance(rows, list):

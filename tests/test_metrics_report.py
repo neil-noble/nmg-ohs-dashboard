@@ -14,7 +14,8 @@ def test_report_keys(report):
     assert set(report) == {"month_label", "generated", "kpis", "table", "trend", "event_trend",
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
-                           "open_actions"}
+                           "open_actions", "open_workflows", "sheq_actions",
+                           "overdue_history", "overdue_since"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -127,3 +128,51 @@ def test_open_action_edge_cases():
         ("Yesterday", "Overdue 1 day", True), ("Today", "Due today", False),
         ("Tomorrow", "Due in 1 day", False), ("Not described", "No due date", False)]
     assert listed[-1]["actionee"] == "Unassigned" and listed[-1]["due"] == "–"
+
+
+def test_open_workflows_by_event_type(report):
+    assert report["open_workflows"] == [("Near Miss", 1)]
+
+
+def test_open_workflows_count_every_open_event_whatever_its_date():
+    events = [sample.event(1, "2026-10-05", "CPO - Ozland", "Injury", "First Aid Injury", status="Open Workflow"),
+              sample.event(2, "2025-01-05", "CPO - Ozland", "Injury", "No Treatment Required", status="Open Workflow"),
+              sample.event(3, "2026-10-06", "GG - Exploration", "Misfire", status="Open Workflow"),
+              sample.event(4, "2026-10-06", "CPO - Ozland", "Misfire"),
+              sample.event(5, "2026-10-06", "PER - Finance", "Misfire", status="Open Workflow")]
+    raw = dict(sample.RAW, events=events, injuries=[])
+    assert metrics.build_report(raw, sample.TODAY, "x")["open_workflows"] == [("Injury", 2), ("Misfire", 1)]
+
+
+def test_sheq_actions_assigned_due_and_overdue(report):
+    assert report["sheq_actions"] == [("Assigned", 2), ("Due", 1), ("Overdue", 1)]
+
+
+def test_overdue_history_ranks_actionees(report):
+    assert report["overdue_history"] == [
+        {"actionee": "Otto OWNER", "late": 1, "still": 1, "assigned": 2}]
+    assert report["overdue_since"] == "Jul 2025"
+
+
+def test_overdue_history_rules():
+    A = sample.action
+    actions = [
+        A("Closed complete", due="2026-09-10T00:00:00", completed="2026-09-10T23:00:00", assignee="On Time"),
+        A("Closed complete", due="2026-09-10T00:00:00", completed="2026-09-11T01:00:00", assignee="One Late"),
+        A("Closed non implemented", due="2026-09-10T00:00:00", completed=None, assignee="No Date"),
+        A("Open", due="2026-10-11T00:00:00", assignee="Due Today"),
+        A("Open", due="2026-10-01T00:00:00", assignee="Two  Late"),
+        A("Closed partially complete", due="2026-08-01T00:00:00", completed="2026-08-09T00:00:00", assignee="Two Late"),
+        A("Open", due="2026-10-01T00:00:00", assignee=None),
+    ]
+    history = metrics.build_overdue_history(actions, sample.TODAY)
+    assert history == [
+        {"actionee": "Two Late", "late": 1, "still": 1, "assigned": 2},
+        {"actionee": "Unassigned", "late": 0, "still": 1, "assigned": 1},   # ties: still overdue first
+        {"actionee": "One Late", "late": 1, "still": 0, "assigned": 1},
+    ]
+
+
+def test_overdue_history_keeps_the_ten_worst():
+    actions = [sample.action("Open", due="2026-10-01T00:00:00", assignee=f"Person {i:02d}") for i in range(12)]
+    assert len(metrics.build_overdue_history(actions, sample.TODAY)) == 10

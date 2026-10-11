@@ -28,7 +28,8 @@ def test_is_a_complete_self_contained_document(page):
 
 def test_every_section_is_present(page):
     for section in ("kpis", "event-table", "rate-trends", "event-trend", "event-mix",
-                    "injury-classes", "injury-analysis", "status"):
+                    "injury-classes", "injury-analysis", "status", "open-workflows",
+                    "sheq-actions", "overdue-history"):
         assert f'id="{section}"' in page
 
 
@@ -54,7 +55,7 @@ def test_kpi_tiles(page):
 
 
 def test_charts_are_inline_svg_with_month_labels(page):
-    assert page.count("<svg") == 5                # TRIFR, LTIFR, event trend, two donuts
+    assert page.count("<svg") == 7    # TRIFR, LTIFR, event trend, two donuts, workflow pie, action bars
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
     assert "NaN" not in page and ">None<" not in page
@@ -92,7 +93,8 @@ def test_empty_report_renders():
     raw = {"events": [], "injuries": [], "hours": [], "actions": [], "people": []}
     page = render.render(metrics.build_report(raw, sample.TODAY, "x"))
     assert "No injuries recorded in the last 12 months" in page
-    assert page.count("<svg") == 5
+    assert page.count("<svg") == 6                # no pie when nothing is open
+    assert "No open workflows" in page and "No actions have gone overdue" in page
     assert "NaN" not in page and "nan%" not in page
 
 
@@ -127,7 +129,7 @@ def test_line_charts_label_the_latest_value(page):
 def test_events_by_month_is_a_line_chart(page):
     section = re.search(r'id="event-trend".*?</section>', page, re.S).group()
     assert section.count("<polyline") == len(config.TREND_GROUPS)     # one line per event type
-    assert "<rect" not in page
+    assert "<rect" not in section
 
 
 def test_outstanding_actions_are_listed_with_their_actionee(page):
@@ -141,3 +143,35 @@ def test_outstanding_actions_are_listed_with_their_actionee(page):
 def test_no_outstanding_actions_message(report):
     page = render.render(dict(report, open_actions=[]))
     assert "No outstanding actions" in page
+
+
+def section_of(page, ident):
+    return re.search(rf'id="{ident}".*?</section>', page, re.S).group()
+
+
+def test_open_workflows_is_a_pie(page):
+    section = section_of(page, "open-workflows")
+    assert "<svg" in section and "Near Miss" in section
+    assert "stroke-dasharray" not in section              # a filled pie, not a ring
+
+
+def test_pie_with_several_slices_draws_one_wedge_each(report):
+    page = render.render(dict(report, open_workflows=[("Injury", 5), ("Misfire", 3), ("A & B", 1)]))
+    section = section_of(page, "open-workflows")
+    assert section.count("<path") == 3
+    assert "A &amp; B" in section
+
+
+def test_sheq_actions_bar_graph_has_a_red_overdue_bar(page):
+    section = section_of(page, "sheq-actions")
+    assert section.count("<rect") == 3
+    for label in ("Assigned", "Due", "Overdue"):
+        assert f">{label}<" in section
+    assert re.search(r'<rect[^>]*fill="#A4262C"[^>]*><title>Overdue: 1</title>', section)
+
+
+def test_overdue_history_names_the_actionees(page):
+    section = section_of(page, "overdue-history")
+    assert "Otto OWNER" in section and "2 of 2" in section
+    assert "Jul 2025" in section
+    assert "Petra ACTIONEE" not in section                # never overdue, so not ranked

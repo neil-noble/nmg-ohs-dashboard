@@ -86,7 +86,7 @@ def test_fetch_all_window_and_keys():
     assert ("/api/v2/powerbi/events", window) in seen
     assert ("/api/v2/powerbi/eventinjurylist", window) in seen
     assert ("/api/v2/powerbi/exposurehours", window) in seen
-    assert ("/api/v2/powerbi/actions", window) in seen
+    assert ("/api/v2/powerbi/actions", dict(window, fromDate="2020-01-01")) in seen   # full history
     assert ("/api/v2/powerbi/people", None) in seen
 
 
@@ -121,4 +121,4 @@ def test_sample_data_uses_the_real_field_names():
 
 
 def test_action_fields_for_the_outstanding_list_are_required():
-    assert {"assignee", "requiredAction"} <= set(fetch.REQUIRED_KEYS["actions"])
+    assert {"assignee", "requiredAction", "createdDate"} <= set(fetch.REQUIRED_KEYS["actions"])

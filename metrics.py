@@ -322,12 +322,56 @@ def build_open_actions(actions, today):
     return [entry for _, _, entry in listed]
 
 
+def build_open_workflows(events, keep=5):
+    """Every event whose workflow is still open, whatever its date, by event type."""
+    tally = Counter("Injury" if e["injury_class"] else e["row"] for e in events if e["open"])
+    ranked = sorted(tally.items(), key=lambda item: (-item[1], item[0]))
+    if len(ranked) > keep + 1:
+        ranked = ranked[:keep] + [("Other", sum(n for _, n in ranked[keep:]))]
+    return ranked
+
+
+def build_sheq_actions(open_actions):
+    """Assigned = every open action; Due = not yet past its due date; Overdue = past it."""
+    overdue = sum(1 for a in open_actions if a["overdue"])
+    due = sum(1 for a in open_actions if not a["overdue"] and a["due"] != "–")
+    return [("Assigned", len(open_actions)), ("Due", due), ("Overdue", overdue)]
+
+
+def build_overdue_history(actions, today, keep=10):
+    """Actionees ranked by actions that went overdue: closed after the due date, or open past it.
+
+    A closed action with no completion date cannot be judged and is not counted as late.
+    """
+    people = {}
+    for a in actions:
+        name = " ".join(_text(a.get("assignee")).split()) or "Unassigned"
+        entry = people.setdefault(name, {"actionee": name, "late": 0, "still": 0, "assigned": 0})
+        entry["assigned"] += 1
+        due, done = parse_day(a.get("dueDate")), parse_day(a.get("completedDate"))
+        if due is None:
+            continue
+        if _text(a.get("actionStatus")).lower() == "open":
+            entry["still"] += due < today
+        elif done and done > due:
+            entry["late"] += 1
+    ranked = [e for e in people.values() if e["late"] + e["still"]]
+    ranked.sort(key=lambda e: (-(e["late"] + e["still"]), -e["still"], e["actionee"]))
+    return ranked[:keep]
+
+
+def _since(actions):
+    first = min(filter(None, (parse_day(a.get("createdDate")) for a in actions)), default=None)
+    return f"{calendar.month_abbr[first.month]} {first.year}" if first else ""
+
+
 def build_report(raw, today, generated):
     month = add_months((today.year, today.month), -1)
     issues = new_issues()
     events = normalise_events(raw["events"], raw["injuries"], issues)
     hours = normalise_hours(raw["hours"], issues)
     table = build_table(events, hours, raw["people"], month, issues)     # adds to issues
+    open_actions = build_open_actions(raw["actions"], today)
     return {
         "month_label": long_label(month),
         "generated": generated,
@@ -338,7 +382,11 @@ def build_report(raw, today, generated):
         "injury_analysis": build_injury_analysis(events, month),
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),
-        "open_actions": build_open_actions(raw["actions"], today),
+        "open_actions": open_actions,
+        "open_workflows": build_open_workflows(events),
+        "sheq_actions": build_sheq_actions(open_actions),
+        "overdue_history": build_overdue_history(raw["actions"], today),
+        "overdue_since": _since(raw["actions"]),
         "unmapped": sorted(issues["unmapped"]),
         "undated": issues["undated"],
         "unclassified": issues["unclassified"],
