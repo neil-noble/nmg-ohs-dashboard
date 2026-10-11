@@ -1,11 +1,12 @@
 project: NMG OHS Dashboard
 created: 2026-10-11
-phase: publishing   # repos created 2026-10-11, secrets set, first workflow run pending
+phase: live_on_pages   # 2026-10-11; Wix page /nmg-ohs still to be added by Neil in the Wix editor
 url_target: https://www.emergencyservicesaustralia.com.au/nmg-ohs
 spec: docs/superpowers/specs/2026-10-11-nmg-ohs-dashboard-design.md
 plan: docs/superpowers/plans/2026-10-11-nmg-ohs-dashboard.md
 pattern: same as NMG Fuel / NMG ERT (Actions -> static html -> Pages site repo -> Wix iframe)
-repos_planned: {source: neil-noble/nmg-ohs-dashboard (private), site: neil-noble/nmg-ohs-site (public)}
+repos: {source: neil-noble/nmg-ohs-dashboard (private, branch master), site: neil-noble/nmg-ohs-site (public, branch main, Pages)}
+pages_url: https://neil-noble.github.io/nmg-ohs-site/
 decisions:
   data_source: live PeopleTray only; screenshot spreadsheet is layout template (its Sept column was mostly Aug data)
   reporting_month: last completed month (AWST), FYTD from 1 Jul, rebuild daily
@@ -15,6 +16,7 @@ decisions:
   head_count: employer == New Murchison Gold Ltd, not Contractor type, Perth excluded, as at month end
   panels: [kpi_tiles, event_table, trifr_ltifr_trend, event_trend_by_type, injury_analysis, open_events_actions]
   privacy: public Pages site -> counts/rates only, no names or descriptions
-next: Neil opens docs/index.html and gives go-ahead -> Task 8 publish (gh repos, PT_API_KEY + PAGES_TOKEN secrets, Pages, Wix page /nmg-ohs)
-pending_setup: [Pages enable, Wix page /nmg-ohs]
+next: Neil adds Wix page /nmg-ohs (Embed a Site -> pages_url) and publishes; then verify; revoke the unused PAGES_TOKEN PAT
+publish: workflow dashboard.yml (05:30 + 12:00 AWST, manual dispatch) pushes via SSH deploy key - secret SITE_DEPLOY_KEY, deploy key "nmg-ohs-dashboard workflow" on the site repo. PAGES_TOKEN secret is unused (PAT lacked write, and was pasted in chat) - delete/revoke.
+wix: no REST API creates an Editor page with an iframe - manual editor step
 api_key: C:\claude\PeopleTray DAS\reference\PT API Key for NMG.txt (line 2) - never copy into repo
