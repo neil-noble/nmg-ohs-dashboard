@@ -15,7 +15,7 @@ def test_report_keys(report):
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
-                           "overdue_history", "overdue_since", "charts_source"}
+                           "charts_source"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -148,36 +148,6 @@ def test_open_workflows_count_every_open_event_whatever_its_date():
 
 def test_sheq_actions_assigned_due_and_overdue(report):
     assert report["sheq_actions"] == [("Assigned", 1), ("Due", 0), ("Overdue", 1)]
-
-
-def test_overdue_history_ranks_actionees(report):
-    assert report["overdue_history"] == [
-        {"actionee": "Otto OWNER", "late": 1, "still": 1, "assigned": 2}]
-    assert report["overdue_since"] == "Jul 2025"
-
-
-def test_overdue_history_rules():
-    A = sample.action
-    actions = [
-        A("Closed complete", due="2026-09-10T00:00:00", completed="2026-09-10T23:00:00", assignee="On Time"),
-        A("Closed complete", due="2026-09-10T00:00:00", completed="2026-09-11T01:00:00", assignee="One Late"),
-        A("Closed non implemented", due="2026-09-10T00:00:00", completed=None, assignee="No Date"),
-        A("Open", due="2026-10-11T00:00:00", assignee="Due Today"),
-        A("Open", due="2026-10-01T00:00:00", assignee="Two  Late"),
-        A("Closed partially complete", due="2026-08-01T00:00:00", completed="2026-08-09T00:00:00", assignee="Two Late"),
-        A("Open", due="2026-10-01T00:00:00", assignee=None),
-    ]
-    history = metrics.build_overdue_history(actions, sample.TODAY)
-    assert history == [
-        {"actionee": "Two Late", "late": 1, "still": 1, "assigned": 2},
-        {"actionee": "Unassigned", "late": 0, "still": 1, "assigned": 1},   # ties: still overdue first
-        {"actionee": "One Late", "late": 1, "still": 0, "assigned": 1},
-    ]
-
-
-def test_overdue_history_keeps_the_ten_worst():
-    actions = [sample.action("Open", due="2026-10-01T00:00:00", assignee=f"Person {i:02d}") for i in range(12)]
-    assert len(metrics.build_overdue_history(actions, sample.TODAY)) == 10
 
 
 def test_sheq_actions_follow_peopletrays_chart():

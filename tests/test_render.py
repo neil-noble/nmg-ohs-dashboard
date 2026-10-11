@@ -29,7 +29,7 @@ def test_is_a_complete_self_contained_document(page):
 def test_every_section_is_present(page):
     for section in ("kpis", "event-table", "rate-trends", "event-trend", "event-mix",
                     "injury-classes", "injury-analysis", "status", "open-workflows",
-                    "sheq-actions", "overdue-history"):
+                    "sheq-actions"):
         assert f'id="{section}"' in page
 
 
@@ -94,7 +94,7 @@ def test_empty_report_renders():
     page = render.render(metrics.build_report(raw, sample.TODAY, "x"))
     assert "No injuries recorded in the last 12 months" in page
     assert page.count("<svg") == 6                # no pie when nothing is open
-    assert "No open workflows" in page and "No actions have gone overdue" in page
+    assert "No open workflows" in page
     assert "NaN" not in page and "nan%" not in page
 
 
@@ -171,13 +171,6 @@ def test_sheq_actions_bar_graph_has_a_red_overdue_bar(page):
     assert re.search(r'<rect[^>]*fill="#D94F32"[^>]*><title>Overdue: 1</title>', section)
 
 
-def test_overdue_history_names_the_actionees(page):
-    section = section_of(page, "overdue-history")
-    assert "Otto OWNER" in section and "2 of 2" in section
-    assert "Jul 2025" in section
-    assert "Petra ACTIONEE" not in section                # never overdue, so not ranked
-
-
 def test_chart_notes_say_where_the_numbers_came_from(report):
     web = render.render(dict(report, charts_source="web"))
     assert web.count("As shown on PeopleTray") == 2
@@ -191,3 +184,7 @@ def test_pie_has_a_colour_for_every_slice(report):
     slices = [(f"Workflow {i:02d}", 20 - i) for i in range(14)]
     section = section_of(render.render(dict(report, open_workflows=slices)), "open-workflows")
     assert section.count("<path") == 14 and section.count("<li>") == 14
+
+
+def test_no_overdue_ranking_of_actionees(page):
+    assert "overdue-history" not in page and "Most overdue actions" not in page

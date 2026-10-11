@@ -90,9 +90,6 @@ background:var(--grey-tint);color:var(--ink)}
 .bars3{max-width:420px;margin:0 auto}
 svg .cat{font-size:12px;fill:var(--ink)}
 svg .val{font-size:14px;font-weight:700}
-.rank{display:grid;grid-template-columns:minmax(90px,38%) 1fr;gap:6px 8px;align-items:center;font-size:12px}
-.rank .brow i{border-radius:0}
-.rank .brow em{font-weight:400;color:var(--muted);white-space:nowrap;margin-left:2px}
 details{margin-top:8px;font-size:12px}
 details summary{cursor:pointer;color:var(--river)}
 footer{grid-column:1/-1;color:var(--muted);font-size:11px;padding:2px 2px 0}
@@ -115,7 +112,6 @@ WEB_NOTE = "As shown on PeopleTray&rsquo;s SHEQ home page."
 WEB_PIE_NOTE = WEB_NOTE + " Exploration Daily Prestarts are left out."
 FALLBACK_NOTE = ("PeopleTray sign-in failed at this build, so these are the API figures and may "
                  "differ from PeopleTray&rsquo;s own chart.")
-LATE_COLOUR = "#8498A2"
 
 
 def nice_max(value):
@@ -412,7 +408,7 @@ def _open_workflows(report):
         "left out.")
     inner = (_pie("Open workflows", items, PIE_COLOURS) + f'<p class="note">{note}</p>'
              if items else '<p class="note">No open workflows.</p>')
-    return _visual(4, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
+    return _visual(6, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
 
 
 def _sheq_actions(report):
@@ -421,27 +417,7 @@ def _sheq_actions(report):
         "Open actions for Crown Prince workgroups, as PeopleTray charts them. Overdue is past the "
         "due date, Due is inside the reminder window, Assigned is the rest.")
     inner = _bar_chart("SHEQ actions", report["sheq_actions"], SHEQ_COLOURS) + f'<p class="note">{note}</p>'
-    return _visual(4, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
-
-
-def _overdue_history(report):
-    people = report["overdue_history"]
-    longest = max((p["late"] + p["still"] for p in people), default=0)
-    rows = ""
-    for p in people:
-        total = p["late"] + p["still"]
-        bars = "".join(
-            f'<i style="width:calc((100% - 74px) * {n / longest:.3f});background:{colour}"></i>'
-            for n, colour in ((p["late"], LATE_COLOUR), (p["still"], RED)) if n)
-        rows += (f'<span>{escape(p["actionee"])}</span><div class="brow">{bars}'
-                 f'<em>{total} of {p["assigned"]}</em></div>')
-    inner = (f'<div class="rank">{rows}</div>'
-             + _legend([("Closed late", LATE_COLOUR), ("Still overdue", RED)])
-             + '<p class="note">Actions that went past their due date, out of all actions assigned '
-               "to that person.</p>"
-             if people else '<p class="note">No actions have gone overdue.</p>')
-    since = f'all actions since {report["overdue_since"]}' if report["overdue_since"] else "all actions"
-    return _visual(4, "Most overdue actions by actionee", inner, "overdue-history", sub=since)
+    return _visual(6, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
 
 
 def _footer():
@@ -457,7 +433,7 @@ def render(report):
     side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}{_actions(report)}</div>'
     main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
                     _event_trend(report), _event_status(report), _open_workflows(report),
-                    _sheq_actions(report), _overdue_history(report), _open_actions(report),
+                    _sheq_actions(report), _open_actions(report),
                     _injuries(report), _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
