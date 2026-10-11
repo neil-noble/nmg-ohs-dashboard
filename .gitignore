@@ -1,0 +1,19 @@
+venv/
+__pycache__/
+*.pyc
+*.tmp
+.pytest_cache/
+
+# Ruflo local secrets and runtime data
+.env
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+
+# Credentials must never be committed from this working directory.
+*pat*.txt
+*token*.txt
+*key*.txt
+*secret*
