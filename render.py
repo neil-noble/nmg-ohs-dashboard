@@ -14,9 +14,6 @@ font-family:"Proxima Nova",Aptos,"Segoe UI",system-ui,sans-serif;font-size:13px;
 header{background:var(--navy);color:#fff;border-bottom:3px solid var(--pale-gold)}
 header .bar{max-width:1440px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;
 gap:16px;flex-wrap:wrap}
-header .logo{background:#fff;border-radius:4px;padding:5px 9px;display:flex;align-items:center}
-header img{height:38px;width:auto;display:block}
-.wordmark{font-weight:900;font-size:26px;color:var(--navy);letter-spacing:1px}
 header h1{margin:0;font-size:20px;font-weight:700;line-height:1.15}
 header p{margin:1px 0 0;font-size:12px;color:var(--river-tint)}
 .slicers{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
@@ -133,19 +130,20 @@ def _axes(top, width, right):
     return parts, y
 
 
-def _line_chart(title, labels, series):
+def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, fmt="{:.2f}"):
+    """series and colours are both keyed by series name; fmt formats the latest-point labels."""
     values = [v for line in series.values() for v in line if v is not None]
-    parts, y = _axes(nice_max(max(values, default=0)), W, RIGHT)
+    parts, y = _axes(nice_max(max(values, default=0)), width, RIGHT)
     span = max(len(labels) - 1, 1)
 
     def x(i):
-        return LEFT + (W - LEFT - RIGHT) * i / span
+        return LEFT + (width - LEFT - RIGHT) * i / span
 
     for i, label in enumerate(labels):
         parts.append(f'<text class="tick" x="{x(i):.1f}" y="{H - 9}" text-anchor="middle">{escape(label)}</text>')
     label_ys = []
     for name, line in series.items():
-        colour = config.SERIES_COLOURS[name]
+        colour = colours[name]
         run = []
         for i, v in enumerate(list(line) + [None]):       # the trailing None flushes the last run
             if v is None:
@@ -163,33 +161,9 @@ def _line_chart(title, labels, series):
                 at -= 12
             label_ys.append(at)
             parts.append(f'<text class="dlabel" x="{x(len(line) - 1) + 7:.1f}" y="{at:.1f}" '
-                         f'fill="{colour}">{line[-1]:.2f}</text>')
-    svg = f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{escape(title)}">{"".join(parts)}</svg>'
-    return svg + _legend([(name, config.SERIES_COLOURS[name]) for name in series])
-
-
-def _column_chart(title, labels, series):
-    width, right = 760, 12
-    totals = [sum(values[i] for _, values in series) for i in range(len(labels))]
-    parts, y = _axes(nice_max(max(totals, default=0)), width, right)
-    slot = (width - LEFT - right) / max(len(labels), 1)
-    bar = slot * 0.6
-    for i, label in enumerate(labels):
-        centre = LEFT + slot * (i + 0.5)
-        parts.append(f'<text class="tick" x="{centre:.1f}" y="{H - 9}" text-anchor="middle">{escape(label)}</text>')
-        base = 0
-        for (name, values), colour in zip(series, config.TREND_COLOURS):
-            if values[i]:
-                top_y, bottom_y = y(base + values[i]), y(base)
-                parts.append(f'<rect x="{centre - bar / 2:.1f}" y="{top_y:.1f}" width="{bar:.1f}" '
-                             f'height="{bottom_y - top_y:.1f}" fill="{colour}">'
-                             f'<title>{escape(name)}: {values[i]}</title></rect>')
-                base += values[i]
-        if totals[i]:
-            parts.append(f'<text class="dlabel" x="{centre:.1f}" y="{y(totals[i]) - 4:.1f}" '
-                         f'text-anchor="middle" fill="{config.BLACK}">{totals[i]}</text>')
+                         f'fill="{colour}">{fmt.format(line[-1])}</text>')
     svg = f'<svg viewBox="0 0 {width} {H}" role="img" aria-label="{escape(title)}">{"".join(parts)}</svg>'
-    return svg + _legend([(name, colour) for (name, _), colour in zip(series, config.TREND_COLOURS)])
+    return svg + _legend([(name, colours[name]) for name in series])
 
 
 def _donut(title, items, colours, caption):
@@ -219,10 +193,8 @@ def _bar(value, longest, colour):
             f"</i><em>{value}</em></div>")
 
 
-def _header(report, logo_b64):
-    logo = (f'<img src="data:image/png;base64,{logo_b64}" alt="New Murchison Gold Limited">'
-            if logo_b64 else '<span class="wordmark">NMG</span>')
-    return (f'<header><div class="bar"><div class="logo">{logo}</div>'
+def _header(report):
+    return ('<header><div class="bar">'
             "<div><h1>Health &amp; Safety Performance</h1><p>New Murchison Gold Limited</p></div>"
             '<div class="slicers">'
             f'<div class="slicer"><span>Reporting month</span><b>{escape(report["month_label"])}</b></div>'
@@ -297,7 +269,9 @@ def _event_trend(report):
     rows = "".join(f'<tr><th scope="row">{escape(name)}</th>'
                    + "".join(f"<td>{value or '–'}</td>" for value in values) + "</tr>"
                    for name, values in trend["series"])
-    inner = (_column_chart("Events by month", trend["labels"], trend["series"])
+    colours = dict(zip((name for name, _ in trend["series"]), config.TREND_COLOURS))
+    inner = (_line_chart("Events by month", trend["labels"], dict(trend["series"]), colours,
+                         width=760, fmt="{}")
              + "<details><summary>Show the numbers</summary><div class=\"scroll\"><table><thead>"
              f"<tr><th>Type</th>{head}</tr></thead><tbody>{rows}</tbody></table></div></details>")
     return _visual(8, "Events by month", inner, "event-trend",
@@ -358,11 +332,11 @@ def _footer():
             "treated injuries. Non work related and pre-existing conditions are not counted.</p></footer>")
 
 
-def render(report, logo_b64=None):
+def render(report):
     side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}{_actions(report)}</div>'
     main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
                     _event_trend(report), _event_status(report), _injuries(report), _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f"<title>NMG Health &amp; Safety Performance</title><style>{CSS}</style></head><body>"
-            f'{_header(report, logo_b64)}<main class="canvas">{main}</main></body></html>')
+            f'{_header(report)}<main class="canvas">{main}</main></body></html>')

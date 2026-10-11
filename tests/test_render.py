@@ -15,7 +15,7 @@ def report():
 
 @pytest.fixture(scope="module")
 def page(report):
-    return render.render(report, logo_b64="AAAA")
+    return render.render(report)
 
 
 def test_is_a_complete_self_contained_document(page):
@@ -23,7 +23,7 @@ def test_is_a_complete_self_contained_document(page):
     assert page.rstrip().endswith("</html>")
     assert "<script" not in page
     assert not re.search(r'(src|href)="https?://', page)
-    assert 'src="data:image/png;base64,AAAA"' in page
+    assert "<img" not in page                      # no logo: the Wix page above already carries it
 
 
 def test_every_section_is_present(page):
@@ -88,10 +88,9 @@ def test_peopletray_text_is_escaped():
     assert "<Explosion>" not in page
 
 
-def test_empty_report_renders_without_a_logo():
+def test_empty_report_renders():
     raw = {"events": [], "injuries": [], "hours": [], "actions": [], "people": []}
     page = render.render(metrics.build_report(raw, sample.TODAY, "x"))
-    assert 'class="wordmark"' in page
     assert "No injuries recorded in the last 12 months" in page
     assert page.count("<svg") == 5
     assert "NaN" not in page and "nan%" not in page
@@ -123,3 +122,9 @@ def test_injury_classification_visual(page):
 
 def test_line_charts_label_the_latest_value(page):
     assert page.count('class="dlabel"') >= 4      # last point of each series on both rate charts
+
+
+def test_events_by_month_is_a_line_chart(page):
+    section = re.search(r'id="event-trend".*?</section>', page, re.S).group()
+    assert section.count("<polyline") == len(config.TREND_GROUPS)     # one line per event type
+    assert "<rect" not in page

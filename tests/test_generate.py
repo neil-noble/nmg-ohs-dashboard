@@ -9,7 +9,7 @@ def test_build_writes_the_page(tmp_path):
     assert report["month_label"] == "September 2026"
     assert page.startswith("<!doctype html>")
     assert "September 2026" in page
-    assert "data:image/png;base64," in page       # the committed logo is embedded
+    assert "<img" not in page
     assert "Quixote" not in page
 
 
