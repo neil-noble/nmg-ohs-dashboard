@@ -1,73 +1,101 @@
-"""The report dict as one self-contained HTML page. No data logic here."""
+"""The report dict as one self-contained HTML page, laid out like a Power BI report:
+a grey canvas carrying white "visuals" on a 12-column grid. No data logic here."""
 from html import escape
 
 import config
 
 CSS = """
 :root{--navy:#083045;--river:#55848A;--gold:#927128;--pale-gold:#B19045;--sand:#F1DCAA;
---sand-tint:#F8EED5;--grey:#DBDBD3;--grey-tint:#EDEDE9;--river-tint:#AAC2C5;--ink:#333334;--muted:#6b6b6c}
+--sand-tint:#F8EED5;--grey:#DBDBD3;--grey-tint:#EDEDE9;--river-tint:#AAC2C5;--ink:#252423;
+--muted:#605E5C;--line:#E1DFDD;--canvas:#F3F2F1}
 *{box-sizing:border-box}
-body{margin:0;background:var(--grey-tint);color:var(--ink);
-font-family:"Proxima Nova",Aptos,"Segoe UI",system-ui,sans-serif;font-size:15px;line-height:1.45}
-.wrap{max-width:1180px;margin:0 auto;padding:0 16px 32px}
-header{background:#fff;border-bottom:4px solid var(--gold)}
-header .wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding-top:14px;padding-bottom:14px}
-header img{height:54px;width:auto}
-.wordmark{font-weight:900;font-size:34px;color:var(--navy);letter-spacing:1px}
-header h1{margin:0;font-size:24px;font-weight:900;color:var(--navy);line-height:1.15}
-header p{margin:2px 0 0;color:var(--muted);font-size:13px}
-header .month{margin-left:auto;text-align:right}
-header .month strong{display:block;font-size:20px;color:var(--navy)}
-section{background:#fff;border-radius:6px;margin-top:18px;overflow:hidden;
-box-shadow:0 1px 2px rgba(8,48,69,.12)}
-section>h2{margin:0;padding:9px 16px;background:var(--navy);color:#fff;font-size:14px;
-font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.pad{padding:16px}
-.note{color:var(--muted);font-size:13px;margin:10px 0 0}
-#notice{background:var(--sand-tint);border-left:5px solid var(--pale-gold);padding:12px 16px;
-margin-top:18px;border-radius:4px}
-.bucket{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.bucket:last-child{margin-bottom:0}
-.bucket h3{flex:0 0 118px;margin:0;display:flex;align-items:center;justify-content:center;
-color:#fff;border-radius:4px;font-size:15px;text-transform:uppercase;letter-spacing:.05em}
-.tile{flex:1 1 150px;background:var(--grey-tint);border-radius:4px;padding:10px 12px;
-border-top:3px solid var(--river)}
-.tile b{display:block;font-size:26px;font-weight:900;color:var(--navy);line-height:1.2}
-.tile span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+body{margin:0;background:var(--canvas);color:var(--ink);
+font-family:"Proxima Nova",Aptos,"Segoe UI",system-ui,sans-serif;font-size:13px;line-height:1.4}
+header{background:var(--navy);color:#fff;border-bottom:3px solid var(--pale-gold)}
+header .bar{max-width:1440px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;
+gap:16px;flex-wrap:wrap}
+header .logo{background:#fff;border-radius:4px;padding:5px 9px;display:flex;align-items:center}
+header img{height:38px;width:auto;display:block}
+.wordmark{font-weight:900;font-size:26px;color:var(--navy);letter-spacing:1px}
+header h1{margin:0;font-size:20px;font-weight:700;line-height:1.15}
+header p{margin:1px 0 0;font-size:12px;color:var(--river-tint)}
+.slicers{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.slicer{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);border-radius:3px;
+padding:4px 10px;min-width:120px}
+.slicer span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;
+color:var(--river-tint)}
+.slicer b{font-size:14px;font-weight:700}
+.canvas{max-width:1440px;margin:0 auto;padding:10px 14px 18px;display:grid;
+grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
+.group{display:contents}
+.col{grid-column:span 5;display:flex;flex-direction:column;gap:10px;min-width:0}
+.col .v{flex:1 1 auto}
+.v{grid-column:span var(--span,12);background:#fff;border:1px solid var(--line);border-radius:4px;
+padding:10px 12px 12px;box-shadow:0 1px 2px rgba(0,0,0,.05);min-width:0}
+.v>h2{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--ink)}
+.v>h2 small{font-weight:400;color:var(--muted);font-size:12px}
+.note{color:var(--muted);font-size:11.5px;margin:8px 0 0}
+#notice{grid-column:1/-1;background:var(--sand-tint);border-left:4px solid var(--pale-gold);
+padding:9px 12px;border-radius:3px}
+.kpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.v.kpi{grid-column:auto;border-top:3px solid var(--river)}
+.pair{display:flex;gap:10px}
+.pair>div{flex:1;min-width:0}
+.pair b{display:block;font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.pair b.long{font-size:15px;line-height:1.25;padding:5px 0 4px}
+.pair span{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-top:2px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
 .scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:560px}
-th,td{padding:7px 10px;border-bottom:1px solid var(--grey);text-align:center}
-thead th{color:#fff;font-weight:700}
-thead tr:first-child th{background:var(--river-tint);color:var(--navy);font-size:16px;
-letter-spacing:.05em;text-transform:uppercase}
-thead tr:last-child th{background:#8498A2}
-tbody th{text-align:left;font-weight:400}
-tbody tr.bold th,tbody tr.bold td{font-weight:900;color:var(--navy);border-top:2px solid var(--river);
-border-bottom:2px solid var(--river)}
+table{border-collapse:collapse;width:100%;min-width:480px;font-size:12.5px}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right}
+thead th{font-weight:700;color:var(--ink);border-bottom:2px solid var(--navy);white-space:nowrap}
+thead tr:first-child th{border-bottom:1px solid var(--line);text-align:center;color:#fff}
+thead tr:first-child th:first-child{background:none}
+thead th:first-child,tbody th{text-align:left}
+tbody th{font-weight:400}
+tbody tr:nth-child(even){background:#FAF9F8}
+tbody tr.bold th,tbody tr.bold td{font-weight:700;background:var(--grey-tint);
+border-top:1px solid var(--navy)}
 tbody td{font-variant-numeric:tabular-nums}
-tbody tr:nth-child(even){background:#fafaf8}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
-.card h3{margin:0 0 6px;font-size:16px;color:var(--navy);text-align:center}
 svg{width:100%;height:auto;display:block}
-.wide{max-width:780px;margin:0 auto}
-svg .grid{stroke:var(--grey);stroke-width:1}
+svg .grid{stroke:var(--line);stroke-width:1}
 svg .tick{font-size:10px;fill:var(--muted)}
-.legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:13px;margin-top:6px}
-.legend i{display:inline-block;width:14px;height:10px;margin-right:5px;border-radius:2px}
-.bars{display:grid;grid-template-columns:minmax(110px,42%) 1fr 30px;gap:5px 8px;align-items:center;
-font-size:13px}
-.bars .track{background:var(--grey-tint);border-radius:3px;height:14px}
-.bars .fill{background:var(--river);border-radius:3px;height:14px}
-.bars .n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
-details{margin-top:10px;font-size:13px}
+svg .dlabel{font-size:10.5px;font-weight:700}
+svg .donut-total{font-size:8px;font-weight:700;fill:var(--ink)}
+svg .donut-cap{font-size:2.6px;fill:var(--muted)}
+.legend{display:flex;gap:4px 14px;justify-content:center;flex-wrap:wrap;font-size:11.5px;margin-top:6px;
+color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:5px}
+.donut{display:flex;align-items:center;gap:12px}
+.donut svg{flex:0 0 46%;max-width:190px}
+.donut ul{list-style:none;margin:0;padding:0;flex:1;min-width:0;font-size:12px}
+.donut li{display:flex;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid var(--grey-tint)}
+.donut li span.name{flex:1;min-width:0}
+.donut li b{font-variant-numeric:tabular-nums}
+.donut li em{font-style:normal;color:var(--muted);width:36px;text-align:right}
+.hbars{display:grid;grid-template-columns:minmax(90px,44%) 1fr;gap:5px 8px;align-items:center;font-size:12px}
+.brow{display:flex;align-items:center;gap:5px;height:14px}
+.brow i{display:block;height:12px;border-radius:2px;min-width:2px}
+.brow em{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums;font-size:11.5px}
+.stack{display:flex;flex-direction:column;gap:2px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center}
+.cards div{background:var(--canvas);border-radius:3px;padding:10px 4px}
+.cards b{display:block;font-size:28px;font-weight:700;color:var(--navy);line-height:1.1}
+.cards b.alert{color:#A4262C}
+.cards span{font-size:11px;color:var(--muted)}
+details{margin-top:8px;font-size:12px}
 details summary{cursor:pointer;color:var(--river)}
-footer{color:var(--muted);font-size:12px;margin-top:18px}
-footer p{margin:4px 0}
-@media(max-width:600px){header .month{margin-left:0;text-align:left}.bucket h3{flex:1 1 100%;padding:6px}
-header h1{font-size:20px}}
+footer{grid-column:1/-1;color:var(--muted);font-size:11px;padding:2px 2px 0}
+footer p{margin:3px 0}
+@media(max-width:1000px){.v,.col{grid-column:1/-1}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+.v.kpi{grid-column:auto}.slicers{margin-left:0}}
+@media(max-width:480px){.kpis{grid-template-columns:1fr}.donut{flex-direction:column;align-items:stretch}
+.donut svg{max-width:170px;margin:0 auto}}
 """
 
-W, H, LEFT, RIGHT, TOP, BOTTOM = 560, 250, 40, 22, 14, 30
+W, H, LEFT, RIGHT, TOP, BOTTOM = 560, 250, 36, 44, 16, 28
+DONUT_R = 15.915          # circumference 100, so dash lengths are percentages
+OPEN_CLOSED_COLOURS = ("#A4262C", config.RIVER)
 
 
 def nice_max(value):
@@ -80,59 +108,75 @@ def nice_max(value):
         step *= 10
 
 
-def _axes(labels, top):
+def _visual(span, title, body, ident=None, classes="", sub=""):
+    attr = f' id="{ident}"' if ident else ""
+    small = f" <small>{escape(sub)}</small>" if sub else ""
+    return (f'<section{attr} class="v{" " + classes if classes else ""}" style="--span:{span}">'
+            f"<h2>{escape(title)}{small}</h2>{body}</section>")
+
+
+def _legend(items):
+    return '<div class="legend">' + "".join(
+        f'<span><i class="dot" style="background:{colour}"></i>{escape(name)}</span>'
+        for name, colour in items) + "</div>"
+
+
+def _axes(top, width, right):
     def y(v):
         return TOP + (H - TOP - BOTTOM) * (1 - v / top)
 
     parts = []
     for k in range(6):
         v = top * k / 5
-        parts.append(f'<line class="grid" x1="{LEFT}" x2="{W - RIGHT}" y1="{y(v):.1f}" y2="{y(v):.1f}"/>'
+        parts.append(f'<line class="grid" x1="{LEFT}" x2="{width - right}" y1="{y(v):.1f}" y2="{y(v):.1f}"/>'
                      f'<text class="tick" x="{LEFT - 6}" y="{y(v) + 3.5:.1f}" text-anchor="end">{v:g}</text>')
     return parts, y
 
 
-def _legend(items):
-    return '<div class="legend">' + "".join(
-        f'<span><i style="background:{colour}"></i>{escape(name)}</span>' for name, colour in items
-    ) + "</div>"
-
-
 def _line_chart(title, labels, series):
     values = [v for line in series.values() for v in line if v is not None]
-    parts, y = _axes(labels, nice_max(max(values, default=0)))
+    parts, y = _axes(nice_max(max(values, default=0)), W, RIGHT)
     span = max(len(labels) - 1, 1)
 
     def x(i):
         return LEFT + (W - LEFT - RIGHT) * i / span
 
     for i, label in enumerate(labels):
-        parts.append(f'<text class="tick" x="{x(i):.1f}" y="{H - 10}" text-anchor="middle">{escape(label)}</text>')
+        parts.append(f'<text class="tick" x="{x(i):.1f}" y="{H - 9}" text-anchor="middle">{escape(label)}</text>')
+    label_ys = []
     for name, line in series.items():
         colour = config.SERIES_COLOURS[name]
         run = []
         for i, v in enumerate(list(line) + [None]):       # the trailing None flushes the last run
             if v is None:
                 if len(run) > 1:
-                    parts.append(f'<polyline fill="none" stroke="{colour}" stroke-width="3" '
+                    parts.append(f'<polyline fill="none" stroke="{colour}" stroke-width="2.5" '
                                  f'stroke-linejoin="round" points="{" ".join(run)}"/>')
                 run = []
             else:
                 run.append(f"{x(i):.1f},{y(v):.1f}")
                 parts.append(f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="3" fill="{colour}"/>')
+        if line and line[-1] is not None:
+            # Data label on the latest point, nudged clear of the other series' label.
+            at = y(line[-1]) + 4
+            while any(abs(at - other) < 12 for other in label_ys):
+                at -= 12
+            label_ys.append(at)
+            parts.append(f'<text class="dlabel" x="{x(len(line) - 1) + 7:.1f}" y="{at:.1f}" '
+                         f'fill="{colour}">{line[-1]:.2f}</text>')
     svg = f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{escape(title)}">{"".join(parts)}</svg>'
-    legend = _legend([(name, config.SERIES_COLOURS[name]) for name in series])
-    return f'<div class="card"><h3>{escape(title)}</h3>{svg}{legend}</div>'
+    return svg + _legend([(name, config.SERIES_COLOURS[name]) for name in series])
 
 
-def _stacked_bars(title, labels, series):
+def _column_chart(title, labels, series):
+    width, right = 760, 12
     totals = [sum(values[i] for _, values in series) for i in range(len(labels))]
-    parts, y = _axes(labels, nice_max(max(totals, default=0)))
-    slot = (W - LEFT - RIGHT) / max(len(labels), 1)
-    bar = slot * 0.62
+    parts, y = _axes(nice_max(max(totals, default=0)), width, right)
+    slot = (width - LEFT - right) / max(len(labels), 1)
+    bar = slot * 0.6
     for i, label in enumerate(labels):
         centre = LEFT + slot * (i + 0.5)
-        parts.append(f'<text class="tick" x="{centre:.1f}" y="{H - 10}" text-anchor="middle">{escape(label)}</text>')
+        parts.append(f'<text class="tick" x="{centre:.1f}" y="{H - 9}" text-anchor="middle">{escape(label)}</text>')
         base = 0
         for (name, values), colour in zip(series, config.TREND_COLOURS):
             if values[i]:
@@ -141,18 +185,50 @@ def _stacked_bars(title, labels, series):
                              f'height="{bottom_y - top_y:.1f}" fill="{colour}">'
                              f'<title>{escape(name)}: {values[i]}</title></rect>')
                 base += values[i]
-    svg = f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{escape(title)}">{"".join(parts)}</svg>'
-    legend = _legend([(name, colour) for (name, _), colour in zip(series, config.TREND_COLOURS)])
-    return f'<div class="wide">{svg}{legend}</div>'
+        if totals[i]:
+            parts.append(f'<text class="dlabel" x="{centre:.1f}" y="{y(totals[i]) - 4:.1f}" '
+                         f'text-anchor="middle" fill="{config.BLACK}">{totals[i]}</text>')
+    svg = f'<svg viewBox="0 0 {width} {H}" role="img" aria-label="{escape(title)}">{"".join(parts)}</svg>'
+    return svg + _legend([(name, colour) for (name, _), colour in zip(series, config.TREND_COLOURS)])
+
+
+def _donut(title, items, colours, caption):
+    """items: [(name, count)]. A ring with the total in the middle and a legend with shares."""
+    total = sum(n for _, n in items)
+    ring = (f'<circle cx="21" cy="21" r="{DONUT_R}" fill="none" stroke="{config.COOL_GREY}" '
+            'stroke-width="6"/>')
+    rows, drawn = [], 0.0
+    for (name, n), colour in zip(items, colours):
+        share = n / total * 100 if total else 0.0
+        if n:
+            ring += (f'<circle cx="21" cy="21" r="{DONUT_R}" fill="none" stroke="{colour}" '
+                     f'stroke-width="6" stroke-dasharray="{share:.3f} {100 - share:.3f}" '
+                     f'stroke-dashoffset="{125 - drawn:.3f}"><title>{escape(name)}: {n}</title></circle>')
+            drawn += share
+        rows.append(f'<li><i class="dot" style="background:{colour}"></i>'
+                    f'<span class="name">{escape(name)}</span><b>{n}</b><em>{share:.0f}%</em></li>')
+    svg = (f'<svg viewBox="0 0 42 42" role="img" aria-label="{escape(title)}">{ring}'
+           f'<text class="donut-total" x="21" y="22.5" text-anchor="middle">{total}</text>'
+           f'<text class="donut-cap" x="21" y="27" text-anchor="middle">{escape(caption)}</text></svg>')
+    return f'<div class="donut">{svg}<ul>{"".join(rows)}</ul></div>'
+
+
+def _bar(value, longest, colour):
+    share = value / longest if longest else 0
+    return (f'<div class="brow"><i style="width:calc((100% - 30px) * {share:.3f});background:{colour}">'
+            f"</i><em>{value}</em></div>")
 
 
 def _header(report, logo_b64):
     logo = (f'<img src="data:image/png;base64,{logo_b64}" alt="New Murchison Gold Limited">'
             if logo_b64 else '<span class="wordmark">NMG</span>')
-    return (f'<header><div class="wrap">{logo}<div><h1>Health &amp; Safety Performance</h1>'
-            f'<p>New Murchison Gold Limited</p></div><div class="month">'
-            f'<strong>{escape(report["month_label"])}</strong>'
-            f'<p>Data as at {escape(report["generated"])}</p></div></div></header>')
+    return (f'<header><div class="bar"><div class="logo">{logo}</div>'
+            "<div><h1>Health &amp; Safety Performance</h1><p>New Murchison Gold Limited</p></div>"
+            '<div class="slicers">'
+            f'<div class="slicer"><span>Reporting month</span><b>{escape(report["month_label"])}</b></div>'
+            '<div class="slicer"><span>Financial year</span><b>From 1 July</b></div>'
+            f'<div class="slicer"><span>Data as at</span><b>{escape(report["generated"])}</b></div>'
+            "</div></div></header>")
 
 
 def _notice(report):
@@ -170,43 +246,49 @@ def _notice(report):
 
 
 def _kpis(report):
-    blocks = []
-    for name in config.BUCKETS:
-        tiles = "".join(f'<div class="tile"><b>{escape(value)}</b><span>{escape(label)}</span></div>'
-                        for label, value in report["kpis"][name])
-        blocks.append(f'<div class="bucket"><h3 style="background:{config.SERIES_COLOURS[name]}">'
-                      f'{escape(name)}</h3>{tiles}</div>')
-    return (f'<section id="kpis"><h2>Key indicators</h2><div class="pad">{"".join(blocks)}'
-            '<p class="note">TRIFR and LTIFR are rolling 12-month rates per million hours worked.</p>'
-            "</div></section>")
+    cards = []
+    measures = [label for label, _ in report["kpis"][config.BUCKETS[0]]]
+    for index, label in enumerate(measures):
+        halves = ""
+        for name in config.BUCKETS:
+            value = report["kpis"][name][index][1]
+            size = ' class="long"' if len(value) > 7 else ""
+            colour = config.SERIES_COLOURS[name]
+            halves += (f'<div><b{size} style="color:{colour}">{escape(value)}</b>'
+                       f'<span><i class="dot" style="background:{colour}"></i>{escape(name)}</span></div>')
+        cards.append(f'<section class="v kpi"><h2>{escape(label)}</h2><div class="pair">{halves}</div></section>')
+    return f'<div id="kpis" class="kpis">{"".join(cards)}</div>'
 
 
 def _table(report):
     month = escape(report["month_label"].split(" ")[0])
-    heads = "".join(f'<th colspan="2">{escape(name)}</th>' for name in config.BUCKETS)
+    heads = "".join(f'<th colspan="2" style="background:{config.SERIES_COLOURS[name]}">{escape(name)}</th>'
+                    for name in config.BUCKETS)
     subs = "".join(f"<th>{month}</th><th>FYTD</th>" for _ in config.BUCKETS)
     body = "".join(
         ('<tr class="bold">' if row["bold"] else "<tr>")
         + f'<th scope="row">{escape(row["label"])}</th>'
         + "".join(f"<td>{escape(cell)}</td>" for cell in row["cells"]) + "</tr>"
         for row in report["table"])
-    return ('<section id="event-table"><h2>Events &mdash; month and financial year to date</h2>'
-            f'<div class="scroll"><table><thead><tr><th></th>{heads}</tr>'
-            f"<tr><th>Event</th>{subs}</tr></thead><tbody>{body}</tbody></table></div>"
-            '<div class="pad"><p class="note">Frequency rates in the FYTD columns are rolling '
-            "12-month rates. Head count is NMG employees only, at month end. FYTD runs from 1 July."
-            "</p></div></section>")
+    inner = (f'<div class="scroll"><table><thead><tr><th></th>{heads}</tr>'
+             f"<tr><th>Event</th>{subs}</tr></thead><tbody>{body}</tbody></table></div>"
+             '<p class="note">Frequency rates in the FYTD columns are rolling 12-month rates. '
+             "Head count is NMG employees only, at month end.</p>")
+    return _visual(7, "Events", inner, "event-table", sub="month and financial year to date")
 
 
 def _trends(report):
     trend = report["trend"]
-    charts = (_line_chart("TRIFR 12 Month Trend", trend["labels"], trend["trifr"])
-              + _line_chart("LTIFR 12 Month Trend", trend["labels"], trend["ltifr"]))
-    return ('<section id="rate-trends"><h2>Total recordable injury &amp; lost time injury '
-            f'frequency rates</h2><div class="pad"><div class="cols">{charts}</div>'
-            '<p class="note">Total Recordable Injury Frequency Rate (TRIFR) and Lost Time Injury '
-            "Frequency Rate (LTIFR) are calculated over 12 months. They represent the number of "
-            "injuries per one million hours worked.</p></div></section>")
+    note = ('<p class="note">Injuries per one million hours worked, calculated over a rolling '
+            "12 months.</p>")
+    return ('<div id="rate-trends" class="group">'
+            + _visual(6, "TRIFR 12 Month Trend",
+                      _line_chart("TRIFR 12 Month Trend", trend["labels"], trend["trifr"]) + note,
+                      sub="total recordable injury frequency rate")
+            + _visual(6, "LTIFR 12 Month Trend",
+                      _line_chart("LTIFR 12 Month Trend", trend["labels"], trend["ltifr"]) + note,
+                      sub="lost time injury frequency rate")
+            + "</div>")
 
 
 def _event_trend(report):
@@ -215,38 +297,56 @@ def _event_trend(report):
     rows = "".join(f'<tr><th scope="row">{escape(name)}</th>'
                    + "".join(f"<td>{value or '–'}</td>" for value in values) + "</tr>"
                    for name, values in trend["series"])
-    return ('<section id="event-trend"><h2>Events by type &mdash; last 12 months</h2>'
-            f'<div class="pad">{_stacked_bars("Events by type", trend["labels"], trend["series"])}'
-            f'<details><summary>Show the numbers</summary><div class="scroll"><table><thead>'
-            f"<tr><th>Type</th>{head}</tr></thead><tbody>{rows}</tbody></table></div></details>"
-            '<p class="note">Mining and Exploration combined.</p></div></section>')
+    inner = (_column_chart("Events by month", trend["labels"], trend["series"])
+             + "<details><summary>Show the numbers</summary><div class=\"scroll\"><table><thead>"
+             f"<tr><th>Type</th>{head}</tr></thead><tbody>{rows}</tbody></table></div></details>")
+    return _visual(8, "Events by month", inner, "event-trend",
+                   sub="last 12 months, Mining and Exploration combined")
+
+
+def _event_mix(report):
+    items = [(name, sum(values)) for name, values in report["event_trend"]["series"]]
+    return _visual(4, "Events by type", _donut("Events by type", items, config.TREND_COLOURS, "events"),
+                   "event-mix", sub="last 12 months")
+
+
+def _injury_classes(report):
+    longest = max((n for _, values in report["injury_classes"] for n in values.values()), default=0)
+    rows = ""
+    for label, values in report["injury_classes"]:
+        bars = "".join(_bar(values[name], longest, config.SERIES_COLOURS[name]) for name in config.BUCKETS)
+        rows += f'<span>{escape(label)}</span><div class="stack">{bars}</div>'
+    legend = _legend([(name, config.SERIES_COLOURS[name]) for name in config.BUCKETS])
+    return _visual(5, "Injuries by classification", f'<div class="hbars">{rows}</div>{legend}',
+                   "injury-classes", sub="financial year to date")
 
 
 def _injuries(report):
-    cards = []
+    visuals = ""
     for title, items in report["injury_analysis"]:
-        longest = max((n for _, n in items), default=1)
-        bars = "".join(
-            f'<span>{escape(label)}</span><span class="track"><span class="fill" '
-            f'style="display:block;width:{n / longest * 100:.0f}%"></span></span>'
-            f'<span class="n">{n}</span>' for label, n in items)
-        inner = f'<div class="bars">{bars}</div>' if items else \
+        longest = max((n for _, n in items), default=0)
+        rows = "".join(f"<span>{escape(label)}</span>{_bar(n, longest, config.RIVER)}" for label, n in items)
+        inner = f'<div class="hbars">{rows}</div>' if items else \
             '<p class="note">No injuries recorded in the last 12 months.</p>'
-        cards.append(f'<div class="card"><h3>{escape(title)}</h3>{inner}</div>')
-    return ('<section id="injury-analysis"><h2>Injury analysis &mdash; last 12 months</h2>'
-            f'<div class="pad"><div class="cols">{"".join(cards)}</div></div></section>')
+        visuals += _visual(4, title, inner, sub="injuries, last 12 months")
+    return f'<div id="injury-analysis" class="group">{visuals}</div>'
 
 
-def _status(report):
+def _event_status(report):
     status = report["status"]
-    tiles = "".join(f'<div class="tile stat"><b>{status[key]}</b><span>{label}</span></div>' for key, label in (
-        ("events_open", "Events open (12 months)"),
-        ("events_closed", "Events closed (12 months)"),
-        ("actions_open", "Actions open"),
-        ("actions_overdue", "Actions overdue"),
-        ("actions_closed_month", "Actions closed in month")))
-    return ('<section id="status"><h2>Open events and corrective actions</h2>'
-            f'<div class="pad"><div class="bucket">{tiles}</div></div></section>')
+    donut = _donut("Event status", [("Open", status["events_open"]), ("Closed", status["events_closed"])],
+                   OPEN_CLOSED_COLOURS, "events")
+    return _visual(4, "Event status", donut, "event-status", sub="last 12 months")
+
+
+def _actions(report):
+    status = report["status"]
+    overdue = ' class="alert"' if status["actions_overdue"] else ""
+    cards = (f'<div class="cards"><div><b>{status["actions_open"]}</b><span>Open</span></div>'
+             f'<div><b{overdue}>{status["actions_overdue"]}</b><span>Overdue</span></div>'
+             f'<div><b>{status["actions_closed_month"]}</b><span>Closed in month</span></div></div>'
+             '<p class="note">All corrective actions on site, not split by Mining and Exploration.</p>')
+    return _visual(5, "Corrective actions", cards, "status")
 
 
 def _footer():
@@ -259,9 +359,10 @@ def _footer():
 
 
 def render(report, logo_b64=None):
-    main = "".join((_notice(report), _kpis(report), _table(report), _trends(report),
-                    _event_trend(report), _injuries(report), _status(report), _footer()))
+    side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}{_actions(report)}</div>'
+    main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
+                    _event_trend(report), _event_status(report), _injuries(report), _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f"<title>NMG Health &amp; Safety Performance</title><style>{CSS}</style></head><body>"
-            f'{_header(report, logo_b64)}<div class="wrap">{main}</div></body></html>')
+            f'{_header(report, logo_b64)}<main class="canvas">{main}</main></body></html>')

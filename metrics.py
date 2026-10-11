@@ -261,6 +261,13 @@ def build_injury_analysis(events, month):
             ("Mechanism of injury", _breakdown([e["mechanism"] for e in injured]))]
 
 
+def build_injury_classes(events, month):
+    """FYTD injuries per classification and bucket, for the classification chart."""
+    fytd = set(month_range(fy_start(month), month))
+    return [(label, {b: count(events, b, fytd, code) for b in config.BUCKETS})
+            for code, label in config.INJURY_CLASSES]
+
+
 def build_status(events, actions, month, today):
     window = set(rolling_12(month))
     recent = [e for e in events if e["ym"] in window]
@@ -295,6 +302,7 @@ def build_report(raw, today, generated):
         "trend": build_trend(events, hours, month),
         "event_trend": build_event_trend(events, month),
         "injury_analysis": build_injury_analysis(events, month),
+        "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),
         "unmapped": sorted(issues["unmapped"]),
         "undated": issues["undated"],

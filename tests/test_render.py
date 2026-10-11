@@ -27,7 +27,8 @@ def test_is_a_complete_self_contained_document(page):
 
 
 def test_every_section_is_present(page):
-    for section in ("kpis", "event-table", "rate-trends", "event-trend", "injury-analysis", "status"):
+    for section in ("kpis", "event-table", "rate-trends", "event-trend", "event-mix",
+                    "injury-classes", "injury-analysis", "status"):
         assert f'id="{section}"' in page
 
 
@@ -38,7 +39,8 @@ def test_header_shows_month_and_timestamp(page):
 
 def test_table_rows_and_cells(page):
     assert "<th>Mining</th>" not in page          # bucket headings span two columns
-    assert 'colspan="2">Mining<' in page and 'colspan="2">Exploration<' in page
+    assert re.search(r'colspan="2"[^>]*>Mining<', page)
+    assert re.search(r'colspan="2"[^>]*>Exploration<', page)
     assert re.search(r"<th[^>]*>Total Person Hours Worked</th><td>30,500</td><td>90,500</td>"
                      r"<td>3,000</td><td>6,500</td>", page)
     assert re.search(r"<th[^>]*>Lost Time Injury Freq Rate \(LTIFR\)</th><td>NA</td><td>0.00</td>"
@@ -46,12 +48,13 @@ def test_table_rows_and_cells(page):
 
 
 def test_kpi_tiles(page):
-    assert page.count('class="tile"') == 10
+    assert page.count('class="v kpi"') == 5                # one card per measure, both buckets on it
     assert "Days since last LTI" in page and ">58<" in page
+    assert ">64.52<" in page and ">30,500<" in page
 
 
 def test_charts_are_inline_svg_with_month_labels(page):
-    assert page.count("<svg") == 3                # TRIFR, LTIFR, event trend
+    assert page.count("<svg") == 5                # TRIFR, LTIFR, event trend, two donuts
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
     assert "NaN" not in page and ">None<" not in page
@@ -90,7 +93,8 @@ def test_empty_report_renders_without_a_logo():
     page = render.render(metrics.build_report(raw, sample.TODAY, "x"))
     assert 'class="wordmark"' in page
     assert "No injuries recorded in the last 12 months" in page
-    assert page.count("<svg") == 3
+    assert page.count("<svg") == 5
+    assert "NaN" not in page and "nan%" not in page
 
 
 def test_nice_axis_maximum():
@@ -100,3 +104,22 @@ def test_nice_axis_maximum():
     assert render.nice_max(64.52) == 100
     assert render.nice_max(7) == 10
     assert render.nice_max(130) == 250
+
+
+def test_visuals_sit_on_a_report_canvas(page):
+    assert 'class="canvas"' in page
+    assert page.count('class="v') >= 14            # every visual is a card on the grid
+
+
+def test_donuts_show_totals(page):
+    assert re.search(r'class="donut-total"[^>]*>10<', page)      # 10 counted events in 12 months
+    assert "Events by type" in page and "Event status" in page
+
+
+def test_injury_classification_visual(page):
+    assert "Injuries by classification" in page
+    assert re.search(r'id="injury-classes".*First Aid Injury', page, re.S)
+
+
+def test_line_charts_label_the_latest_value(page):
+    assert page.count('class="dlabel"') >= 4      # last point of each series on both rate charts

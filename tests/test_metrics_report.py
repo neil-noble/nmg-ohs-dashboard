@@ -13,7 +13,7 @@ def report():
 def test_report_keys(report):
     assert set(report) == {"month_label", "generated", "kpis", "table", "trend", "event_trend",
                            "injury_analysis", "status", "unmapped", "undated",
-                           "unclassified"}
+                           "unclassified", "injury_classes"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -95,3 +95,12 @@ def test_report_carries_unclassified_count_and_head_count_workgroups():
     report = metrics.build_report(raw, sample.TODAY, "x")
     assert report["unclassified"] == 1
     assert report["unmapped"] == ["Processing - Mill"]
+
+
+def test_injury_classes_are_fytd_counts_per_bucket(report):
+    classes = {label: values for label, values in report["injury_classes"]}
+    assert list(classes) == ["Lost Time Injury", "Restricted Work Injury", "Medically Treated Injury",
+                             "First Aid Injury", "No Treatment Injury"]
+    assert classes["First Aid Injury"] == {config.MINING: 2, config.EXPLORATION: 0}
+    assert classes["Lost Time Injury"] == {config.MINING: 0, config.EXPLORATION: 1}
+    assert classes["No Treatment Injury"] == {config.MINING: 0, config.EXPLORATION: 0}   # June is last FY
