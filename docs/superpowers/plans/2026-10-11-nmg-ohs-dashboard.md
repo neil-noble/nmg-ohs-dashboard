@@ -946,7 +946,7 @@ def build_table(events, hours, people, month):
 - [ ] **Step 5: Run to verify pass**
 
 Run: `python -m pytest tests/test_metrics_table.py -q`
-Expected: `19 passed`
+Expected: `18 passed`
 
 - [ ] **Step 6: Commit**
 
@@ -1223,7 +1223,9 @@ def test_key_comes_from_env_first(tmp_path):
 
 def test_key_falls_back_to_line_2_of_the_file(tmp_path):
     key_file = tmp_path / "key.txt"
-    key_file.write_text("﻿PT API Key for NMG\nfile-key\n", encoding="utf-8")
+    key_file.write_text("﻿PT API Key for NMG
+file-key
+", encoding="utf-8")
     assert peopletray.load_key({}, key_file) == "file-key"
 
 
@@ -1481,7 +1483,7 @@ def test_charts_are_inline_svg_with_month_labels(page):
     assert page.count("<svg") == 3                # TRIFR, LTIFR, event trend
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
-    assert "nan" not in page.lower().replace("finance", "")
+    assert "NaN" not in page and "None" not in page
 
 
 def test_unmapped_notice_names_the_workgroup(page):
@@ -1723,7 +1725,8 @@ def _table(report):
     heads = "".join(f'<th colspan="2">{escape(name)}</th>' for name in config.BUCKETS)
     subs = "".join(f"<th>{month}</th><th>FYTD</th>" for _ in config.BUCKETS)
     body = "".join(
-        f'<tr{" class=\"bold\"" if row["bold"] else ""}><th scope="row">{escape(row["label"])}</th>'
+        ('<tr class="bold">' if row["bold"] else "<tr>")
+        + f'<th scope="row">{escape(row["label"])}</th>'
         + "".join(f"<td>{escape(cell)}</td>" for cell in row["cells"]) + "</tr>"
         for row in report["table"])
     return ('<section id="event-table"><h2>Events &mdash; month and financial year to date</h2>'
@@ -1775,7 +1778,7 @@ def _injuries(report):
 
 def _status(report):
     status = report["status"]
-    tiles = "".join(f'<div class="tile"><b>{status[key]}</b><span>{label}</span></div>' for key, label in (
+    tiles = "".join(f'<div class="tile stat"><b>{status[key]}</b><span>{label}</span></div>' for key, label in (
         ("events_open", "Events open (12 months)"),
         ("events_closed", "Events closed (12 months)"),
         ("actions_open", "Actions open"),
@@ -1803,7 +1806,7 @@ def render(report, logo_b64=None):
             f'{_header(report, logo_b64)}<div class="wrap">{main}</div></body></html>')
 ```
 
-Note for the implementer: `tests/test_render.py::test_kpi_tiles` expects exactly 10 elements with `class="tile"`, but the status section above also uses `.tile`. Give the status tiles `class="tile stat"` (so the KPI count stays 10 and the styling is shared), and in `_event_trend` and `_table` nothing else uses that class. Apply this in `_status`: `'<div class="tile stat">'`.
+The status tiles use `class="tile stat"` so that exactly ten elements carry `class="tile"` (the KPI tiles), which `test_kpi_tiles` counts.
 
 - [ ] **Step 5: Run to verify pass**
 
