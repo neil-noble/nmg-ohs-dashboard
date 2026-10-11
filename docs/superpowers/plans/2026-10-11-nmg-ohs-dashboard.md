@@ -1223,9 +1223,7 @@ def test_key_comes_from_env_first(tmp_path):
 
 def test_key_falls_back_to_line_2_of_the_file(tmp_path):
     key_file = tmp_path / "key.txt"
-    key_file.write_text("﻿PT API Key for NMG
-file-key
-", encoding="utf-8")
+    key_file.write_text("﻿PT API Key for NMG\nfile-key\n", encoding="utf-8")
     assert peopletray.load_key({}, key_file) == "file-key"
 
 
