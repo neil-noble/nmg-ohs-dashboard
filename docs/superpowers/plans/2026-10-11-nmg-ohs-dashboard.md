@@ -565,7 +565,7 @@ RAW = {"events": EVENTS, "injuries": INJURIES, "hours": HOURS,
        "actions": ACTIONS, "people": PEOPLE}
 ```
 
-Worked totals for this data (the tests below assert them): Mining hours Sept 30,500, FYTD 90,500, rolling 12 months 270,500. Exploration hours Sept 3,000, FYTD 8,500, rolling 12 months 17,500. Exploration LTIFR = 1 × 1,000,000 ÷ 17,500 = 57.14.
+Worked totals for this data (the tests below assert them): Mining hours Sept 30,500, FYTD 90,500, rolling 12 months 270,500. Exploration hours Sept 3,000, FYTD 6,500, rolling 12 months 15,500. Exploration LTIFR = 1 × 1,000,000 ÷ 15,500 = 64.52.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -660,10 +660,10 @@ def test_hours_by_bucket_and_month(data):
 
 
 def test_rate_and_formatting():
-    assert metrics.rate(1, 17500.0) == pytest.approx(57.142857)
+    assert metrics.rate(1, 15500.0) == pytest.approx(64.516129)
     assert metrics.rate(0, 1000.0) == 0.0
     assert metrics.rate(3, 0) is None
-    assert metrics.fmt_rate(57.142857) == "57.14"
+    assert metrics.fmt_rate(64.516129) == "64.52"
     assert metrics.fmt_rate(0.0) == "0.00"
     assert metrics.fmt_rate(None) == "NA"
     assert metrics.fmt_count(0) == "–"
@@ -673,7 +673,7 @@ def test_rate_and_formatting():
 def test_frequency_rates_use_rolling_12_months(data):
     events, hours, _ = data
     trifr, ltifr = metrics.frequency_rates(events, hours, config.EXPLORATION, sample.MONTH)
-    assert trifr == pytest.approx(57.142857) and ltifr == pytest.approx(57.142857)
+    assert trifr == pytest.approx(64.516129) and ltifr == pytest.approx(64.516129)
     assert metrics.frequency_rates(events, hours, config.MINING, sample.MONTH) == (0.0, 0.0)
 
 
@@ -703,14 +703,14 @@ def test_table_for_september_2026(data):
     assert row(table, "Total Injuries") == ["2", "2", "–", "1"]
     assert row(table, "Near Miss") == ["2", "2", "–", "–"]
     assert row(table, "Lost Workdays") == ["–", "–", "–", "open"]
-    assert row(table, "Lost Time Injury Freq Rate (LTIFR)") == ["NA", "0.00", "NA", "57.14"]
-    assert row(table, "Total Recordable Injury Freq Rate (TRIFR)") == ["NA", "0.00", "NA", "57.14"]
+    assert row(table, "Lost Time Injury Freq Rate (LTIFR)") == ["NA", "0.00", "NA", "64.52"]
+    assert row(table, "Total Recordable Injury Freq Rate (TRIFR)") == ["NA", "0.00", "NA", "64.52"]
     assert row(table, "Environmental Incidents") == ["–", "–", "–", "–"]
     assert row(table, "Property Damage / Loss") == ["1", "1", "–", "–"]
     assert row(table, "Security Incident / Violence") == ["–", "1", "–", "1"]
     assert row(table, "Misfire") == ["1", "1", "–", "–"]
     assert row(table, "NMG Head Count") == ["2", "NA", "1", "NA"]
-    assert row(table, "Total Person Hours Worked") == ["30,500", "90,500", "3,000", "8,500"]
+    assert row(table, "Total Person Hours Worked") == ["30,500", "90,500", "3,000", "6,500"]
 
 
 def test_table_bold_rows_and_order(data):
@@ -1007,7 +1007,7 @@ def test_kpis(report):
         ("TRIFR", "0.00"), ("LTIFR", "0.00"), ("Injuries in month", "2"),
         ("Days since last LTI", "None recorded"), ("Person hours in month", "30,500")]
     assert report["kpis"][config.EXPLORATION] == [
-        ("TRIFR", "57.14"), ("LTIFR", "57.14"), ("Injuries in month", "–"),
+        ("TRIFR", "64.52"), ("LTIFR", "64.52"), ("Injuries in month", "–"),
         ("Days since last LTI", "58"), ("Person hours in month", "3,000")]
 
 
@@ -1015,7 +1015,7 @@ def test_trend_has_12_labelled_points(report):
     trend = report["trend"]
     assert len(trend["labels"]) == 12
     assert trend["labels"][0] == "Oct 25" and trend["labels"][-1] == "Sep 26"
-    assert trend["trifr"][config.EXPLORATION][-1] == pytest.approx(57.142857)
+    assert trend["trifr"][config.EXPLORATION][-1] == pytest.approx(64.516129)
     # August point: one LTI over the 12,500 Exploration hours from Oct 25 to Aug 26
     assert trend["ltifr"][config.EXPLORATION][-2] == pytest.approx(80.0)
     assert trend["ltifr"][config.EXPLORATION][-3] == 0.0
@@ -1469,9 +1469,9 @@ def test_table_rows_and_cells(page):
     assert "<th>Mining</th>" not in page          # bucket headings span two columns
     assert 'colspan="2">Mining<' in page and 'colspan="2">Exploration<' in page
     assert re.search(r"<th[^>]*>Total Person Hours Worked</th><td>30,500</td><td>90,500</td>"
-                     r"<td>3,000</td><td>8,500</td>", page)
+                     r"<td>3,000</td><td>6,500</td>", page)
     assert re.search(r"<th[^>]*>Lost Time Injury Freq Rate \(LTIFR\)</th><td>NA</td><td>0.00</td>"
-                     r"<td>NA</td><td>57.14</td>", page)
+                     r"<td>NA</td><td>64.52</td>", page)
 
 
 def test_kpi_tiles(page):
@@ -1526,7 +1526,7 @@ def test_nice_axis_maximum():
     assert render.nice_max(0) == 5
     assert render.nice_max(4.2) == 5
     assert render.nice_max(22.52) == 25
-    assert render.nice_max(57.14) == 100
+    assert render.nice_max(64.52) == 100
     assert render.nice_max(7) == 10
     assert render.nice_max(130) == 250
 ```
