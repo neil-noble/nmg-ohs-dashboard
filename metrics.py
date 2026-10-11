@@ -402,6 +402,17 @@ def build_report(raw, today, generated):
     hours = normalise_hours(raw["hours"], issues)
     table = build_table(events, hours, raw["people"], month, issues)     # adds to issues
     open_actions = build_open_actions(raw["actions"], today)
+    # PeopleTray's own two charts, read off its SHEQ home page, win over the API reconstructions.
+    web = raw.get("web_charts")
+    if web:
+        source = "web"
+        sheq_actions = list(web["sheq_actions"])
+        open_workflows = sorted(((name, n) for name, n in web["open_workflows"] if n),
+                                key=lambda item: (-item[1], item[0]))
+    else:
+        source = "api_fallback" if raw.get("web_error") else "api"
+        sheq_actions = build_sheq_actions(raw["actions"], today)
+        open_workflows = build_open_workflows(events, raw.get("checklists", []))
     return {
         "month_label": long_label(month),
         "generated": generated,
@@ -413,8 +424,9 @@ def build_report(raw, today, generated):
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),
         "open_actions": open_actions,
-        "open_workflows": build_open_workflows(events, raw.get("checklists", [])),
-        "sheq_actions": build_sheq_actions(raw["actions"], today),
+        "open_workflows": open_workflows,
+        "sheq_actions": sheq_actions,
+        "charts_source": source,
         "overdue_history": build_overdue_history(raw["actions"], today),
         "overdue_since": _since(raw["actions"]),
         "unmapped": sorted(issues["unmapped"]),

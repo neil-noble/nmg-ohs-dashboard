@@ -20,3 +20,6 @@ __pycache__/
 
 # Build output - published to nmg-ohs-site by the workflow, not kept here
 docs/index.html
+
+# Local logged-in browser profile used to explore the PeopleTray web app
+.browser-profile/

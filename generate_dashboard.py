@@ -5,6 +5,7 @@ import fetch
 import metrics
 import periods
 import render
+import webcharts
 
 ROOT = Path(__file__).parent
 OUTPUT = ROOT / "docs" / "index.html"
@@ -18,9 +19,20 @@ def build(raw, today, generated, out_path=OUTPUT):
     return report
 
 
-def warnings(report):
+def read_web_charts(fetcher=webcharts.fetch_web_charts):
+    """(charts, error). A failed sign-in must not stop the dashboard: it falls back to the API."""
+    try:
+        return fetcher(), None
+    except webcharts.WebChartsError as error:
+        return None, str(error)
+
+
+def warnings(report, web_error=None):
     """One line for everything the figures leave out, for the workflow log."""
     lines = []
+    if web_error:
+        lines.append(f"PeopleTray web charts not read ({web_error}); SHEQ Actions and Open "
+                     "Workflows are showing API figures")
     if report["unmapped"]:
         names = ", ".join(" ".join(name.split()) for name in report["unmapped"])
         lines.append(f"Unmapped workgroups left out of the figures: {names}")
@@ -34,9 +46,11 @@ def warnings(report):
 
 def main():
     today = periods.today_perth()
-    report = build(fetch.fetch_all(today), today, periods.now_label())
-    print(f"Built {OUTPUT} for {report['month_label']}")
-    for line in warnings(report):
+    raw = fetch.fetch_all(today)
+    raw["web_charts"], raw["web_error"] = read_web_charts()
+    report = build(raw, today, periods.now_label())
+    print(f"Built {OUTPUT} for {report['month_label']} (charts from {report['charts_source']})")
+    for line in warnings(report, raw["web_error"]):
         print(f"::warning::{line}")
 
 

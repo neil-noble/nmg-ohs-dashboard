@@ -34,10 +34,20 @@ jobs:
           python -m pip install --quiet pytest
           python -m pytest -q
 
+      # The SHEQ Actions and Open Workflows charts are read off PeopleTray's own SHEQ home
+      # page, which needs a browser sign-in. If the sign-in fails the build carries on with
+      # the API versions of those two charts and says so on the page.
+      - name: Install the browser
+        run: |
+          python -m pip install --quiet playwright==1.62.0
+          python -m playwright install --with-deps --only-shell chromium
+
       - name: Generate dashboard HTML
         run: python generate_dashboard.py
         env:
           PT_API_KEY: ${{ secrets.PT_API_KEY }}
+          PT_WEB_USERNAME: ${{ secrets.PT_WEB_USERNAME }}
+          PT_WEB_PASSWORD: ${{ secrets.PT_WEB_PASSWORD }}
 
       - name: Push to public site repo
         # A write deploy key on nmg-ohs-site only. It reaches the shell as an

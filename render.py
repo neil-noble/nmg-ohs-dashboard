@@ -2,6 +2,7 @@
 a grey canvas carrying white "visuals" on a 12-column grid. No data logic here."""
 import math
 from html import escape
+from itertools import cycle
 
 import config
 
@@ -108,7 +109,11 @@ RED = "#A4262C"
 OPEN_CLOSED_COLOURS = (RED, config.RIVER)
 SHEQ_COLOURS = ("#B5B5B0", "#2E9E44", "#D94F32")        # assigned, due, overdue - as PeopleTray
 PIE_COLOURS = (config.RIVER, config.GOLD, config.NAVY, "#D8C8A2", "#8498A2", config.PALE_GOLD,
-               "#AAC2C5", "#99999A", config.SAND, config.BLACK)
+               "#AAC2C5", "#99999A", config.SAND, config.BLACK, "#C9B894", "#3D6B70", "#5B4718",
+               "#2F5F7A")
+WEB_NOTE = "As shown on PeopleTray&rsquo;s SHEQ home page."
+FALLBACK_NOTE = ("PeopleTray sign-in failed at this build, so these are the API figures and may "
+                 "differ from PeopleTray&rsquo;s own chart.")
 LATE_COLOUR = "#8498A2"
 
 
@@ -213,6 +218,7 @@ def _pie(title, items, colours):
     """A filled pie with a legend carrying counts and shares. Assumes at least one item."""
     total = sum(n for _, n in items)
     wedges, start = "", 0.0
+    colours = [colour for _, colour in zip(items, cycle(colours))]     # never run out of colours
     for (name, n), colour in zip(items, colours):
         share = n / total
         tip = f"<title>{escape(name)}: {n}</title>"
@@ -398,18 +404,21 @@ def _open_actions(report):
 def _open_workflows(report):
     items = report["open_workflows"]
     total = sum(n for _, n in items)
-    inner = (_pie("Open workflows", items, PIE_COLOURS)
-             + '<p class="note">Submitted forms and safety events whose workflow is still open. '
-               "PeopleTray's own chart also counts forms issued but not yet submitted.</p>"
+    note = {"web": WEB_NOTE, "api_fallback": FALLBACK_NOTE}.get(
+        report["charts_source"],
+        "Submitted forms and safety events whose workflow is still open. PeopleTray&rsquo;s own "
+        "chart also counts forms issued but not yet submitted.")
+    inner = (_pie("Open workflows", items, PIE_COLOURS) + f'<p class="note">{note}</p>'
              if items else '<p class="note">No open workflows.</p>')
     return _visual(4, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
 
 
 def _sheq_actions(report):
-    inner = (_bar_chart("SHEQ actions", report["sheq_actions"], SHEQ_COLOURS)
-             + '<p class="note">Open actions for Crown Prince workgroups, as PeopleTray charts them. '
-               "Overdue is past the due date, Due is inside the reminder window, Assigned is the rest."
-               "</p>")
+    note = {"web": WEB_NOTE, "api_fallback": FALLBACK_NOTE}.get(
+        report["charts_source"],
+        "Open actions for Crown Prince workgroups, as PeopleTray charts them. Overdue is past the "
+        "due date, Due is inside the reminder window, Assigned is the rest.")
+    inner = _bar_chart("SHEQ actions", report["sheq_actions"], SHEQ_COLOURS) + f'<p class="note">{note}</p>'
     return _visual(4, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
 
 

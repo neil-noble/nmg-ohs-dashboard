@@ -19,3 +19,21 @@ def test_warnings_cover_everything_left_out_of_the_figures():
     assert len(lines) == 3
     assert "Shutdown Crew" in lines[0] and "2 events" in lines[1] and "1 injur" in lines[2]
     assert generate_dashboard.warnings({"unmapped": [], "undated": 0, "unclassified": 0}) == []
+
+
+def test_warnings_report_a_failed_web_read():
+    report = {"unmapped": [], "undated": 0, "unclassified": 0}
+    lines = generate_dashboard.warnings(report, web_error="sign-in rejected")
+    assert len(lines) == 1 and "sign-in rejected" in lines[0] and "API" in lines[0]
+
+
+def test_read_web_charts_never_raises():
+    import webcharts
+
+    def broken(env=None):
+        raise webcharts.WebChartsError("sign-in rejected")
+
+    assert generate_dashboard.read_web_charts(broken) == (None, "sign-in rejected")
+    assert generate_dashboard.read_web_charts(lambda env=None: None) == (None, None)
+    charts = {"sheq_actions": [], "open_workflows": []}
+    assert generate_dashboard.read_web_charts(lambda env=None: charts) == (charts, None)

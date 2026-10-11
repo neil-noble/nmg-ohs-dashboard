@@ -15,7 +15,7 @@ def test_report_keys(report):
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
-                           "overdue_history", "overdue_since"}
+                           "overdue_history", "overdue_since", "charts_source"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -207,3 +207,33 @@ def test_open_workflows_keep_the_nine_biggest_types():
 def test_report_builds_without_a_checklist_feed():
     raw = {k: v for k, v in sample.RAW.items() if k != "checklists"}
     assert metrics.build_report(raw, sample.TODAY, "x")["open_workflows"] == [("Safety Events", 1)]
+
+
+WEB = {"sheq_actions": [("Assigned", 5), ("Due", 1), ("Overdue", 3)],
+       "open_workflows": [("CCV - Explosives", 1), ("Take 5", 18), ("Nothing open", 0),
+                          ("Light Vehicle Prestarts", 107), ("Area Inspection", 7)]}
+
+
+def test_without_web_charts_the_api_figures_are_used(report):
+    assert report["charts_source"] == "api"
+
+
+def test_web_charts_replace_the_api_versions_of_both_charts():
+    report = metrics.build_report(dict(sample.RAW, web_charts=WEB), sample.TODAY, "x")
+    assert report["charts_source"] == "web"
+    assert report["sheq_actions"] == [("Assigned", 5), ("Due", 1), ("Overdue", 3)]
+    assert report["open_workflows"] == [("Light Vehicle Prestarts", 107), ("Take 5", 18),
+                                        ("Area Inspection", 7), ("CCV - Explosives", 1)]
+
+
+def test_a_failed_web_read_falls_back_to_the_api_and_says_so():
+    report = metrics.build_report(dict(sample.RAW, web_charts=None, web_error="sign-in rejected"),
+                                  sample.TODAY, "x")
+    assert report["charts_source"] == "api_fallback"
+    assert report["sheq_actions"] == [("Assigned", 1), ("Due", 0), ("Overdue", 1)]
+
+
+def test_web_pie_keeps_every_slice_peopletray_shows():
+    web = dict(WEB, open_workflows=[(f"Workflow {i:02d}", 20 - i) for i in range(14)])
+    report = metrics.build_report(dict(sample.RAW, web_charts=web), sample.TODAY, "x")
+    assert len(report["open_workflows"]) == 14

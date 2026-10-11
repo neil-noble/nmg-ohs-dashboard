@@ -1,6 +1,6 @@
 project: NMG OHS Dashboard
 created: 2026-10-11
-phase: live_on_pages   # 2026-10-11; Wix page /nmg-ohs still to be added by Neil in the Wix editor
+phase: live   # Pages + Wix /nmg-ohs live 2026-10-11; web-chart sign-in built, waiting on PT_WEB_* secrets
 url_target: https://www.emergencyservicesaustralia.com.au/nmg-ohs
 spec: docs/superpowers/specs/2026-10-11-nmg-ohs-dashboard-design.md
 plan: docs/superpowers/plans/2026-10-11-nmg-ohs-dashboard.md
@@ -16,7 +16,7 @@ decisions:
   head_count: employer == New Murchison Gold Ltd, not Contractor type, Perth excluded, as at month end
   panels: [kpi_tiles, event_table, trifr_ltifr_trend, event_trend_by_type, injury_analysis, open_events_actions]
   privacy: public Pages site -> counts and rates only, EXCEPT the Outstanding corrective actions list, which shows each open action text and actionee name (Neil asked 2026-10-11)
-next: Neil adds Wix page /nmg-ohs (Embed a Site -> pages_url) and publishes; then verify; revoke the unused PAGES_TOKEN PAT
+next: Neil sets PT_WEB_USERNAME + PT_WEB_PASSWORD secrets -> run workflow -> confirm page note says "As shown on PeopleTray"; revoke unused PAGES_TOKEN PAT
 publish: workflow dashboard.yml (05:30 + 12:00 AWST, manual dispatch) pushes via SSH deploy key - secret SITE_DEPLOY_KEY, deploy key "nmg-ohs-dashboard workflow" on the site repo. PAGES_TOKEN secret is unused (PAT lacked write, and was pasted in chat) - delete/revoke.
 wix: no REST API creates an Editor page with an iframe - manual editor step
 api_key: C:\claude\PeopleTray DAS\reference\PT API Key for NMG.txt (line 2) - never copy into repo

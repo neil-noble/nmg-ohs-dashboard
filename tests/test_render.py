@@ -176,3 +176,18 @@ def test_overdue_history_names_the_actionees(page):
     assert "Otto OWNER" in section and "2 of 2" in section
     assert "Jul 2025" in section
     assert "Petra ACTIONEE" not in section                # never overdue, so not ranked
+
+
+def test_chart_notes_say_where_the_numbers_came_from(report):
+    web = render.render(dict(report, charts_source="web"))
+    assert web.count("As shown on PeopleTray") == 2
+    api = render.render(dict(report, charts_source="api"))
+    assert "As shown on PeopleTray" not in api and "issued but not yet submitted" in api
+    fallback = render.render(dict(report, charts_source="api_fallback"))
+    assert fallback.count("PeopleTray sign-in failed") == 2
+
+
+def test_pie_has_a_colour_for_every_slice(report):
+    slices = [(f"Workflow {i:02d}", 20 - i) for i in range(14)]
+    section = section_of(render.render(dict(report, open_workflows=slices)), "open-workflows")
+    assert section.count("<path") == 14 and section.count("<li>") == 14

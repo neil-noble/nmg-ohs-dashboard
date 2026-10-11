@@ -40,3 +40,14 @@ sheq_actions_chart:
     Due = within reminderDays of dueDate, Assigned = the rest
   evidence: reproduced PeopleTray's 5 / 1 / 3 on 2026-10-11; the two open actions it leaves out were GG - Exploration
     and Drilling Contractors
+
+# Added 2026-10-11 - where PeopleTray's own two charts live
+web_charts:
+  page: https://au.peopletray.com/SheTray/Home   # "SHEQ Home", menu SHEQTray
+  how_fed: JSON written into the page itself, no XHR - "var workflowActionsChartModel = {...}" (Series name/y,
+    Assigned/Due/Overdue) and "var openWorkflowsPieChartModel = {...}" (Series name/y per workflow type)
+  login: same form as the Evacuation List - /Common/Account/Login, #UserName #Password #btnSubmit; API key is ignored
+  secrets: PT_WEB_USERNAME / PT_WEB_PASSWORD on neil-noble/nmg-ohs-dashboard (Neil sets them; never written here)
+  on_failure: build carries on with the API versions of the two charts, page note + ::warning:: in the log
+  related_page: /TeamTray/Dashboards has "Actions by Workgroup" (Overdue/Due/Assigned per workgroup, all workgroups)
+  local_testing: .browser-profile/ (gitignored) holds a signed-in session from 2026-10-11; it will expire
