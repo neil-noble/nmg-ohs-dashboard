@@ -118,3 +118,7 @@ def test_sample_data_uses_the_real_field_names():
     from tests import sample
     for name, rows in sample.RAW.items():
         assert set(fetch.REQUIRED_KEYS[name]) <= set(rows[0]), name
+
+
+def test_action_fields_for_the_outstanding_list_are_required():
+    assert {"assignee", "requiredAction"} <= set(fetch.REQUIRED_KEYS["actions"])

@@ -13,7 +13,8 @@ def report():
 def test_report_keys(report):
     assert set(report) == {"month_label", "generated", "kpis", "table", "trend", "event_trend",
                            "injury_analysis", "status", "unmapped", "undated",
-                           "unclassified", "injury_classes"}
+                           "unclassified", "injury_classes",
+                           "open_actions"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -104,3 +105,25 @@ def test_injury_classes_are_fytd_counts_per_bucket(report):
     assert classes["First Aid Injury"] == {config.MINING: 2, config.EXPLORATION: 0}
     assert classes["Lost Time Injury"] == {config.MINING: 0, config.EXPLORATION: 1}
     assert classes["No Treatment Injury"] == {config.MINING: 0, config.EXPLORATION: 0}   # June is last FY
+
+
+def test_open_actions_are_listed_most_overdue_first(report):
+    assert report["open_actions"] == [
+        {"action": "Fit the <new> guard", "actionee": "Otto OWNER", "due": "2 Oct 2026",
+         "status": "Overdue 9 days", "overdue": True},
+        {"action": "Review the ore mark-up procedure", "actionee": "Petra ACTIONEE",
+         "due": "1 Nov 2026", "status": "Due in 21 days", "overdue": False},
+    ]
+
+
+def test_open_action_edge_cases():
+    actions = [sample.action("Open", due=None, assignee=None, required=None),
+               sample.action("Open", due="2026-10-11T00:00:00", assignee="A", required="Today"),
+               sample.action("Open", due="2026-10-10T00:00:00", assignee="B", required="Yesterday"),
+               sample.action(" open ", due="2026-10-12T00:00:00", assignee="C", required="Tomorrow"),
+               sample.action("Closed complete", due="2026-10-01T00:00:00", assignee="D", required="Done")]
+    listed = metrics.build_open_actions(actions, sample.TODAY)
+    assert [(a["action"], a["status"], a["overdue"]) for a in listed] == [
+        ("Yesterday", "Overdue 1 day", True), ("Today", "Due today", False),
+        ("Tomorrow", "Due in 1 day", False), ("Not described", "No due date", False)]
+    assert listed[-1]["actionee"] == "Unassigned" and listed[-1]["due"] == "–"

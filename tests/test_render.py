@@ -128,3 +128,16 @@ def test_events_by_month_is_a_line_chart(page):
     section = re.search(r'id="event-trend".*?</section>', page, re.S).group()
     assert section.count("<polyline") == len(config.TREND_GROUPS)     # one line per event type
     assert "<rect" not in page
+
+
+def test_outstanding_actions_are_listed_with_their_actionee(page):
+    section = re.search(r'id="open-actions".*?</section>', page, re.S).group()
+    assert "Otto OWNER" in section and "Petra ACTIONEE" in section
+    assert "Fit the &lt;new&gt; guard" in section and "<new>" not in section
+    assert "Overdue 9 days" in section and "Due in 21 days" in section
+    assert section.index("Otto OWNER") < section.index("Petra ACTIONEE")
+
+
+def test_no_outstanding_actions_message(report):
+    page = render.render(dict(report, open_actions=[]))
+    assert "No outstanding actions" in page

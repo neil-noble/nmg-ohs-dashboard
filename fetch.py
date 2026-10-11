@@ -22,7 +22,7 @@ REQUIRED_KEYS = {
     "injuries": ("eventId", "injuryType", "eventSubTypeName", "returnWorkDate",
                  "injuryBodyLocation", "injuryNature", "injuryMechanism"),
     "hours": ("groupName", "year", "month", "exposureHours"),
-    "actions": ("actionStatus", "dueDate", "completedDate"),
+    "actions": ("actionStatus", "dueDate", "completedDate", "assignee", "requiredAction"),
     "people": ("workGroup", "employer", "emplpyeeType", "dateCommenced", "dateCeased"),
 }
 

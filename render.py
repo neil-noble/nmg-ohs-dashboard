@@ -46,8 +46,8 @@ padding:9px 12px;border-radius:3px}
 table{border-collapse:collapse;width:100%;min-width:480px;font-size:12.5px}
 th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right}
 thead th{font-weight:700;color:var(--ink);border-bottom:2px solid var(--navy);white-space:nowrap}
-thead tr:first-child th{border-bottom:1px solid var(--line);text-align:center;color:#fff}
-thead tr:first-child th:first-child{background:none}
+.matrix thead tr:first-child th{border-bottom:1px solid var(--line);text-align:center;color:#fff}
+.matrix thead tr:first-child th:first-child{background:none}
 thead th:first-child,tbody th{text-align:left}
 tbody th{font-weight:400}
 tbody tr:nth-child(even){background:#FAF9F8}
@@ -80,6 +80,11 @@ color:var(--muted)}
 .cards b{display:block;font-size:28px;font-weight:700;color:var(--navy);line-height:1.1}
 .cards b.alert{color:#A4262C}
 .cards span{font-size:11px;color:var(--muted)}
+.actions th,.actions td{text-align:left;vertical-align:top}
+.actions td:nth-child(n+2){white-space:nowrap}
+.pill{display:inline-block;border-radius:10px;padding:1px 9px;font-size:11.5px;font-weight:700;
+background:var(--grey-tint);color:var(--ink)}
+.pill.late{background:#FDE7E9;color:#A4262C}
 details{margin-top:8px;font-size:12px}
 details summary{cursor:pointer;color:var(--river)}
 footer{grid-column:1/-1;color:var(--muted);font-size:11px;padding:2px 2px 0}
@@ -242,7 +247,7 @@ def _table(report):
         + f'<th scope="row">{escape(row["label"])}</th>'
         + "".join(f"<td>{escape(cell)}</td>" for cell in row["cells"]) + "</tr>"
         for row in report["table"])
-    inner = (f'<div class="scroll"><table><thead><tr><th></th>{heads}</tr>'
+    inner = (f'<div class="scroll"><table class="matrix"><thead><tr><th></th>{heads}</tr>'
              f"<tr><th>Event</th>{subs}</tr></thead><tbody>{body}</tbody></table></div>"
              '<p class="note">Frequency rates in the FYTD columns are rolling 12-month rates. '
              "Head count is NMG employees only, at month end.</p>")
@@ -323,6 +328,18 @@ def _actions(report):
     return _visual(5, "Corrective actions", cards, "status")
 
 
+def _open_actions(report):
+    rows = "".join(
+        f'<tr><td>{escape(a["action"])}</td><td>{escape(a["actionee"])}</td><td>{escape(a["due"])}</td>'
+        f'<td><span class="pill{" late" if a["overdue"] else ""}">{escape(a["status"])}</span></td></tr>'
+        for a in report["open_actions"])
+    inner = ('<div class="scroll"><table class="actions"><thead><tr><th>Action</th><th>Actionee</th>'
+             f"<th>Due</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table></div>"
+             if rows else '<p class="note">No outstanding actions.</p>')
+    return _visual(12, "Outstanding corrective actions", inner, "open-actions",
+                   sub=f'{len(report["open_actions"])} open, most overdue first')
+
+
 def _footer():
     return ("<footer><p><strong>Source:</strong> PeopleTray. Rebuilt daily.</p>"
             "<p><strong>Mining:</strong> all CPO workgroups, Contractors &ndash; Local and "
@@ -335,7 +352,8 @@ def _footer():
 def render(report):
     side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}{_actions(report)}</div>'
     main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
-                    _event_trend(report), _event_status(report), _injuries(report), _footer()))
+                    _event_trend(report), _event_status(report), _open_actions(report),
+                    _injuries(report), _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f"<title>NMG Health &amp; Safety Performance</title><style>{CSS}</style></head><body>"

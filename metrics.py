@@ -1,4 +1,5 @@
 """Raw PeopleTray lists in, one report dict out. Pure functions, no I/O."""
+import calendar
 from collections import Counter
 
 import config
@@ -288,6 +289,39 @@ def build_status(events, actions, month, today):
     return status
 
 
+def _days(n):
+    return f"{n} day" if n == 1 else f"{n} days"
+
+
+def build_open_actions(actions, today):
+    """Outstanding corrective actions with their actionee, most overdue first.
+
+    This is the one place a person's name reaches the page: Neil asked for it on 2026-10-11.
+    """
+    listed = []
+    for a in actions:
+        if _text(a.get("actionStatus")).lower() != "open":
+            continue
+        due = parse_day(a.get("dueDate"))
+        if due is None:
+            status = "No due date"
+        elif due < today:
+            status = f"Overdue {_days((today - due).days)}"
+        elif due == today:
+            status = "Due today"
+        else:
+            status = f"Due in {_days((due - today).days)}"
+        listed.append((due is None, due or today, {
+            "action": " ".join(_text(a.get("requiredAction")).split()) or "Not described",
+            "actionee": " ".join(_text(a.get("assignee")).split()) or "Unassigned",
+            "due": f"{due.day} {calendar.month_abbr[due.month]} {due.year}" if due else "–",
+            "status": status,
+            "overdue": bool(due and due < today),
+        }))
+    listed.sort(key=lambda item: (item[0], item[1]))
+    return [entry for _, _, entry in listed]
+
+
 def build_report(raw, today, generated):
     month = add_months((today.year, today.month), -1)
     issues = new_issues()
@@ -304,6 +338,7 @@ def build_report(raw, today, generated):
         "injury_analysis": build_injury_analysis(events, month),
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),
+        "open_actions": build_open_actions(raw["actions"], today),
         "unmapped": sorted(issues["unmapped"]),
         "undated": issues["undated"],
         "unclassified": issues["unclassified"],
