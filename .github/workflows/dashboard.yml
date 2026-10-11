@@ -40,8 +40,12 @@ jobs:
           PT_API_KEY: ${{ secrets.PT_API_KEY }}
 
       - name: Push to public site repo
+        # The token reaches the shell as an environment variable, never as script
+        # text, so whatever the secret holds cannot be run as a command.
+        env:
+          PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
         run: |
-          git clone https://x-access-token:${{ secrets.PAGES_TOKEN }}@github.com/neil-noble/nmg-ohs-site.git /tmp/nmg-ohs-site
+          git clone "https://x-access-token:${PAGES_TOKEN}@github.com/neil-noble/nmg-ohs-site.git" /tmp/nmg-ohs-site
           cp docs/index.html /tmp/nmg-ohs-site/index.html
           cd /tmp/nmg-ohs-site
           git config user.name  "github-actions[bot]"
