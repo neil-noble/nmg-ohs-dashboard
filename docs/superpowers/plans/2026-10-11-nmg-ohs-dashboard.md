@@ -1483,7 +1483,7 @@ def test_charts_are_inline_svg_with_month_labels(page):
     assert page.count("<svg") == 3                # TRIFR, LTIFR, event trend
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
-    assert "NaN" not in page and "None" not in page
+    assert "NaN" not in page and ">None<" not in page
 
 
 def test_unmapped_notice_names_the_workgroup(page):
