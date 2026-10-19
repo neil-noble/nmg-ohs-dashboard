@@ -37,3 +37,18 @@ def test_read_web_charts_never_raises():
     assert generate_dashboard.read_web_charts(lambda env=None: None) == (None, None)
     charts = {"sheq_actions": [], "open_workflows": []}
     assert generate_dashboard.read_web_charts(lambda env=None: charts) == (charts, None)
+
+
+def test_read_ert_dials_never_raises():
+    import ertdials
+
+    def broken():
+        raise ertdials.ErtDialsError("the day shift dials are not on the ERT page")
+    assert generate_dashboard.read_ert_dials(broken) == (None, "the day shift dials are not on the ERT page")
+    assert generate_dashboard.read_ert_dials(lambda: {"rows": []}) == ({"rows": []}, None)
+
+
+def test_warnings_report_an_unread_ert_dashboard():
+    report = {"unmapped": [], "undated": 0, "unclassified": 0, "ert_error": "timed out"}
+    lines = generate_dashboard.warnings(report)
+    assert len(lines) == 1 and "timed out" in lines[0] and "Emergency Services" in lines[0]

@@ -19,14 +19,16 @@ _CORE = ("events", "hours", "people")
 # field would otherwise read as blank and quietly zero a figure.
 REQUIRED_KEYS = {
     "events": ("eventId", "eventDateTime", "eventDate", "workGroup", "eventType",
-               "eventSubType", "injuryType", "eventStatus"),
+               "eventSubType", "injuryType", "eventStatus", "targetCloseDateTime",
+               "reportedTo", "currentStep"),
     "injuries": ("eventId", "injuryType", "eventSubTypeName", "returnWorkDate",
                  "injuryBodyLocation", "injuryNature", "injuryMechanism"),
     "hours": ("groupName", "year", "month", "exposureHours"),
     "actions": ("actionStatus", "dueDate", "completedDate", "assignee", "requiredAction",
-                "createdDate", "reminderDays", "assigneeWorkgroup"),
+                "createdDate", "reminderDays", "assigneeWorkgroup", "assigneeId"),
     "checklists": ("checklistName", "workflowStatus"),
-    "people": ("workGroup", "employer", "emplpyeeType", "dateCommenced", "dateCeased"),
+    "people": ("id", "firstName", "lastName", "workGroup", "employer", "emplpyeeType",
+               "dateCommenced", "dateCeased"),
 }
 
 

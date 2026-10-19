@@ -15,7 +15,7 @@ def test_report_keys(report):
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
-                           "charts_source"}
+                           "charts_source", "open_incidents", "ert", "ert_error"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -110,10 +110,11 @@ def test_injury_classes_are_fytd_counts_per_bucket(report):
 
 def test_open_actions_are_listed_most_overdue_first(report):
     assert report["open_actions"] == [
-        {"action": "Fit the <new> guard", "actionee": "Otto OWNER", "due": "2 Oct 2026",
-         "status": "Overdue 9 days", "overdue": True},
+        {"action": "Fit the <new> guard", "actionee": "Otto OWNER", "contractor": "Acme Haulage",
+         "due": "2 Oct 2026", "status": "Overdue 9 days", "overdue": True},
         {"action": "Review the ore mark-up procedure", "actionee": "Petra ACTIONEE",
-         "due": "1 Nov 2026", "status": "Due in 21 days", "overdue": False},
+         "contractor": "Petra & Sons", "due": "1 Nov 2026", "status": "Due in 21 days",
+         "overdue": False},
     ]
 
 
@@ -217,3 +218,50 @@ def test_exploration_daily_prestart_is_left_off_the_open_workflows_pie():
     lists = [sample.checklist("Exploration Daily Prestart"), sample.checklist("Take 5")]
     from_api = metrics.build_report(dict(sample.RAW, checklists=lists), sample.TODAY, "x")["open_workflows"]
     assert from_api == [("Safety Events", 1), ("Take 5", 1)]
+
+
+def test_action_contractor_prefers_the_person_id_then_the_name():
+    people = [sample.person("CPO - Ozland", employer="Old Co", pid=7, first="Al", last="SMITH",
+                            ceased="2025-01-01T00:00:00"),
+              sample.person("CPO - Ozland", employer="New Co", pid=8, first="Al", last="SMITH"),
+              sample.person("CPO - Ozland", employer="Id Co", pid=9, first="Bo", last="JONES")]
+    actions = [sample.action("Open", due="2026-10-01T00:00:00", assignee="Al  Smith"),
+               sample.action("Open", due="2026-10-02T00:00:00", assignee="Someone Else", assignee_id=9),
+               sample.action("Open", due="2026-10-03T00:00:00", assignee="Nobody KNOWN")]
+    listed = metrics.build_open_actions(actions, sample.TODAY, people)
+    assert [a["contractor"] for a in listed] == ["New Co", "Id Co", "–"]
+
+
+def test_open_incidents_are_open_events_most_overdue_first(report):
+    assert report["open_incidents"] == {"total": 1, "rows": [{
+        "event": "6", "date": "20 Sep 2026", "type": "Near Miss", "workgroup": "CPO - MLG",
+        "step": "Assess the Event", "contractor": "Acme Haulage", "due": "5 Oct 2026",
+        "status": "Overdue 6 days", "overdue": True}]}
+
+
+def test_open_incidents_keep_the_most_overdue_and_leave_out_other_sites():
+    events = [sample.event(n, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow",
+                           target=f"2026-10-{n:02d}T00:00:00") for n in range(1, 21)]
+    events += [sample.event(30, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow"),
+               sample.event(31, "2026-09-01", "PER - Management", "Near Miss", status="Open Workflow",
+                            target="2026-01-01T00:00:00"),
+               sample.event(32, "2026-09-01", "CPO - Ozland", "Near Miss",
+                            target="2026-01-01T00:00:00")]
+    listed = metrics.build_open_incidents(events, [], sample.TODAY, keep=15)
+    assert listed["total"] == 21
+    assert [e["event"] for e in listed["rows"]] == [str(n) for n in range(1, 16)]
+    assert listed["rows"][0]["status"] == "Overdue 10 days" and listed["rows"][0]["contractor"] == "–"
+    assert listed["rows"][10]["status"] == "Due today"
+    every = metrics.build_open_incidents(events, [], sample.TODAY, keep=50)
+    assert every["rows"][-1]["event"] == "30" and every["rows"][-1]["status"] == "No target date"
+
+
+def test_ert_shortfalls_list_only_dials_below_minimum():
+    ert = {"updated": "19 Oct 2026, 11:38 AM AWST",
+           "rows": [("Day shift", [("Advanced First Aid", 4, 2), ("HAZMAT", 1, 4)]),
+                    ("Day and night", [("HAZMAT", 4, 4)])]}
+    assert metrics.build_ert_shortfalls(ert) == {
+        "updated": "19 Oct 2026, 11:38 AM AWST", "dials": 3,
+        "rows": [{"shift": "Day shift", "competency": "HAZMAT", "held": 1, "minimum": 4,
+                  "status": "Short by 3"}]}
+    assert metrics.build_ert_shortfalls(None) is None

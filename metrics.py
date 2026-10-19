@@ -293,33 +293,110 @@ def _days(n):
     return f"{n} day" if n == 1 else f"{n} days"
 
 
-def build_open_actions(actions, today):
-    """Outstanding corrective actions with their actionee, most overdue first.
+def _due_status(due, today):
+    """(status text, overdue?) for something due on `due`."""
+    if due is None:
+        return "No due date", False
+    if due < today:
+        return f"Overdue {_days((today - due).days)}", True
+    if due == today:
+        return "Due today", False
+    return f"Due in {_days((due - today).days)}", False
 
-    This is the one place a person's name reaches the page: Neil asked for it on 2026-10-11.
+
+def _day_label(day):
+    return f"{day.day} {calendar.month_abbr[day.month]} {day.year}" if day else "–"
+
+
+def _name_key(name):
+    return " ".join(_text(name).upper().split())
+
+
+def contractor_lookup(people):
+    """Each person's employer, by PeopleTray person id and by name.
+
+    The events and actions feeds carry no company, so the contractor comes from the people
+    feed. Current staff win over people who have left when two share a name.
     """
+    by_id, by_name = {}, {}
+    for p in sorted(people, key=lambda p: bool(p.get("dateCeased"))):
+        employer = " ".join(_text(p.get("employer")).split())
+        if not employer:
+            continue
+        if p.get("id") is not None:
+            by_id.setdefault(p["id"], employer)
+        for first in (p.get("firstName"), p.get("preferredName")):
+            if _text(first):
+                by_name.setdefault(_name_key(f"{first} {p.get('lastName') or ''}"), employer)
+    return by_id, by_name
+
+
+def build_open_actions(actions, today, people=()):
+    """Outstanding corrective actions with their actionee and contractor, most overdue first.
+
+    This and the open incidents are the places a person's name reaches the page: Neil asked
+    for the actionee on 2026-10-11 and the contractor on 2026-10-19.
+    """
+    by_id, by_name = contractor_lookup(people)
     listed = []
     for a in actions:
         if _text(a.get("actionStatus")).lower() != "open":
             continue
         due = parse_day(a.get("dueDate"))
-        if due is None:
-            status = "No due date"
-        elif due < today:
-            status = f"Overdue {_days((today - due).days)}"
-        elif due == today:
-            status = "Due today"
-        else:
-            status = f"Due in {_days((due - today).days)}"
+        status, overdue = _due_status(due, today)
+        actionee = " ".join(_text(a.get("assignee")).split())
         listed.append((due is None, due or today, {
             "action": " ".join(_text(a.get("requiredAction")).split()) or "Not described",
-            "actionee": " ".join(_text(a.get("assignee")).split()) or "Unassigned",
-            "due": f"{due.day} {calendar.month_abbr[due.month]} {due.year}" if due else "–",
+            "actionee": actionee or "Unassigned",
+            "contractor": by_id.get(a.get("assigneeId")) or by_name.get(_name_key(actionee)) or "–",
+            "due": _day_label(due),
             "status": status,
-            "overdue": bool(due and due < today),
+            "overdue": overdue,
         }))
     listed.sort(key=lambda item: (item[0], item[1]))
     return [entry for _, _, entry in listed]
+
+
+def build_open_incidents(events, people, today, keep=config.OPEN_INCIDENTS_SHOWN):
+    """Open Mining and Exploration events, most overdue against their target close date first.
+
+    The contractor is the employer of the person the event was reported to (Neil, 2026-10-19).
+    No description reaches the page: the free text names people, breath test breaches among them.
+    """
+    _, by_name = contractor_lookup(people)
+    listed = []
+    for ev in events:
+        if "open" not in _text(ev.get("eventStatus")).lower():
+            continue
+        if config.bucket(ev.get("workGroup")) not in (config.MINING, config.EXPLORATION):
+            continue
+        day = parse_day(ev.get("eventDateTime")) or parse_day(ev.get("eventDate"))
+        due = parse_day(ev.get("targetCloseDateTime")) or parse_day(ev.get("targetCloseDate"))
+        status, overdue = _due_status(due, today)
+        listed.append((due is None, due or today, {
+            "event": str(ev.get("eventId") or "–"),
+            "date": _day_label(day),
+            "type": _text(ev.get("eventType")) or "Not recorded",
+            "workgroup": " ".join(_text(ev.get("workGroup")).split()),
+            "step": " ".join(_text(ev.get("currentStep")).split()) or "Open",
+            "contractor": by_name.get(_name_key(ev.get("reportedTo"))) or "–",
+            "due": _day_label(due),
+            "status": status.replace("No due date", "No target date"),
+            "overdue": overdue,
+        }))
+    listed.sort(key=lambda item: (item[0], item[1]))
+    return {"total": len(listed), "rows": [entry for _, _, entry in listed[:keep]]}
+
+
+def build_ert_shortfalls(ert):
+    """ERT dials below their minimum, read off the ERT dashboard. None when it was not read."""
+    if not ert:
+        return None
+    rows = [{"shift": shift, "competency": name, "held": held, "minimum": minimum,
+             "status": f"Short by {minimum - held}"}
+            for shift, dials in ert["rows"] for name, held, minimum in dials if held < minimum]
+    return {"updated": ert.get("updated", ""), "rows": rows,
+            "dials": sum(len(dials) for _, dials in ert["rows"])}
 
 
 def build_open_workflows(events, checklists, keep=9):
@@ -374,7 +451,7 @@ def build_report(raw, today, generated):
     events = normalise_events(raw["events"], raw["injuries"], issues)
     hours = normalise_hours(raw["hours"], issues)
     table = build_table(events, hours, raw["people"], month, issues)     # adds to issues
-    open_actions = build_open_actions(raw["actions"], today)
+    open_actions = build_open_actions(raw["actions"], today, raw["people"])
     # PeopleTray's own two charts, read off its SHEQ home page, win over the API reconstructions.
     web = raw.get("web_charts")
     if web:
@@ -398,6 +475,9 @@ def build_report(raw, today, generated):
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),
         "open_actions": open_actions,
+        "open_incidents": build_open_incidents(raw["events"], raw["people"], today),
+        "ert": build_ert_shortfalls(raw.get("ert_dials")),
+        "ert_error": raw.get("ert_error"),
         "open_workflows": open_workflows,
         "sheq_actions": sheq_actions,
         "charts_source": source,

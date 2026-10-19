@@ -138,6 +138,8 @@ def test_outstanding_actions_are_listed_with_their_actionee(page):
     assert "Fit the &lt;new&gt; guard" in section and "<new>" not in section
     assert "Overdue 9 days" in section and "Due in 21 days" in section
     assert section.index("Otto OWNER") < section.index("Petra ACTIONEE")
+    assert "<th>Contractor</th>" in section and "Acme Haulage" in section
+    assert "Petra &amp; Sons" in section
 
 
 def test_no_outstanding_actions_message(report):
@@ -188,3 +190,37 @@ def test_pie_has_a_colour_for_every_slice(report):
 
 def test_no_overdue_ranking_of_actionees(page):
     assert "overdue-history" not in page and "Most overdue actions" not in page
+
+
+ERT = {"updated": "19 Oct 2026, 11:38 AM AWST",
+       "rows": [{"shift": "Day shift", "competency": "HAZMAT", "held": 1, "minimum": 4,
+                 "status": "Short by 3"}], "dials": 18}
+
+
+def test_open_incidents_show_status_and_contractor(page):
+    section = section_of(page, "open-incidents")
+    assert "Assess the Event" in section and "Acme Haulage" in section
+    assert '<span class="pill late">Overdue 6 days</span>' in section
+    assert "1 open, most overdue first" in section
+
+
+def test_open_incidents_say_when_only_the_top_are_shown(report):
+    rows = [dict(report["open_incidents"]["rows"][0])] * 15
+    page = render.render(dict(report, open_incidents={"total": 21, "rows": rows}))
+    assert "top 15 of 21 open" in section_of(page, "open-incidents")
+    page = render.render(dict(report, open_incidents={"total": 0, "rows": []}))
+    assert "No open incidents" in page
+
+
+def test_ert_shortfalls_are_red_with_the_shortfall(report):
+    section = section_of(render.render(dict(report, ert=ERT)), "ert-shortfalls")
+    assert "Emergency Services non-conformances" in section
+    assert "HAZMAT" in section and '<span class="pill late">Short by 3</span>' in section
+    assert "1 of 18 below minimum" in section and "19 Oct 2026, 11:38 AM AWST" in section
+
+
+def test_ert_section_when_all_met_or_unread(report):
+    met = render.render(dict(report, ert=dict(ERT, rows=[])))
+    assert "at or above its minimum" in section_of(met, "ert-shortfalls")
+    unread = render.render(dict(report, ert=None))
+    assert "could not be read" in section_of(unread, "ert-shortfalls")

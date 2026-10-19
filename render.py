@@ -386,16 +386,63 @@ def _actions(report):
     return _visual(5, "Corrective actions", cards, "status")
 
 
+def _pill(text, late):
+    return f'<span class="pill{" late" if late else ""}">{escape(text)}</span>'
+
+
 def _open_actions(report):
     rows = "".join(
-        f'<tr><td>{escape(a["action"])}</td><td>{escape(a["actionee"])}</td><td>{escape(a["due"])}</td>'
-        f'<td><span class="pill{" late" if a["overdue"] else ""}">{escape(a["status"])}</span></td></tr>'
+        f'<tr><td>{escape(a["action"])}</td><td>{escape(a["actionee"])}</td>'
+        f'<td>{escape(a["contractor"])}</td><td>{escape(a["due"])}</td>'
+        f'<td>{_pill(a["status"], a["overdue"])}</td></tr>'
         for a in report["open_actions"])
     inner = ('<div class="scroll"><table class="actions"><thead><tr><th>Action</th><th>Actionee</th>'
-             f"<th>Due</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table></div>"
+             f"<th>Contractor</th><th>Due</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table></div>"
              if rows else '<p class="note">No outstanding actions.</p>')
     return _visual(12, "Outstanding corrective actions", inner, "open-actions",
                    sub=f'{len(report["open_actions"])} open, most overdue first')
+
+
+def _open_incidents(report):
+    incidents = report["open_incidents"]
+    rows = "".join(
+        f'<tr><td>{escape(e["event"])}</td><td>{escape(e["date"])}</td><td>{escape(e["type"])}</td>'
+        f'<td>{escape(e["workgroup"])}</td><td>{escape(e["step"])}</td>'
+        f'<td>{escape(e["contractor"])}</td><td>{escape(e["due"])}</td>'
+        f'<td>{_pill(e["status"], e["overdue"])}</td></tr>'
+        for e in incidents["rows"])
+    inner = ('<div class="scroll"><table class="actions incidents"><thead><tr><th>Event</th><th>Date</th>'
+             "<th>Type</th><th>Workgroup</th><th>Completion step</th><th>Contractor</th>"
+             f"<th>Target close</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table></div>"
+             '<p class="note">Open safety events in PeopleTray against their target close date. The '
+             "contractor is the employer of the person the event was reported to.</p>"
+             if rows else '<p class="note">No open incidents.</p>')
+    shown = len(incidents["rows"])
+    sub = (f'{incidents["total"]} open, most overdue first' if shown == incidents["total"]
+           else f'top {shown} of {incidents["total"]} open, most overdue first')
+    return _visual(12, "Open incidents", inner, "open-incidents", sub=sub)
+
+
+def _ert_shortfalls(report):
+    ert = report["ert"]
+    if ert is None:
+        inner = ('<p class="note">The NMG CPO ERT dashboard could not be read on this build, so '
+                 "ERT coverage is not shown.</p>")
+        return _visual(12, "Emergency Services non-conformances", inner, "ert-shortfalls")
+    rows = "".join(
+        f'<tr><td>{escape(r["shift"])}</td><td>{escape(r["competency"])}</td>'
+        f'<td>{r["held"]}</td><td>{r["minimum"]}</td><td>{_pill(r["status"], True)}</td></tr>'
+        for r in ert["rows"])
+    inner = ('<div class="scroll"><table class="actions"><thead><tr><th>Shift</th><th>Competency</th>'
+             "<th>ERT on roster</th><th>Minimum</th><th>Status</th></tr></thead>"
+             f"<tbody>{rows}</tbody></table></div>"
+             if rows else '<p class="note">Every ERT competency is at or above its minimum.</p>')
+    when = f' as at {escape(ert["updated"])}' if ert["updated"] else ""
+    inner += ('<p class="note">ERT competency coverage below minimum, from the NMG CPO ERT '
+              f"dashboard{when}: competent ERT members on today&rsquo;s roster against the minimum "
+              "per 24 hours.</p>")
+    return _visual(12, "Emergency Services non-conformances", inner, "ert-shortfalls",
+                   sub=f'{len(ert["rows"])} of {ert["dials"]} below minimum')
 
 
 def _open_workflows(report):
@@ -433,7 +480,8 @@ def render(report):
     side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}{_actions(report)}</div>'
     main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
                     _event_trend(report), _event_status(report), _open_workflows(report),
-                    _sheq_actions(report), _open_actions(report),
+                    _sheq_actions(report), _open_incidents(report), _ert_shortfalls(report),
+                    _open_actions(report),
                     _injuries(report), _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'

@@ -15,6 +15,9 @@ decisions:
   excluded: [Flight/Accommodation ONLY, PER - *]
   head_count: employer == New Murchison Gold Ltd, not Contractor type, Perth excluded, as at month end
   panels: [kpi_tiles, event_table, trifr_ltifr_trend, event_trend_by_type, injury_analysis, open_events_actions]
+  open_incidents: (2026-10-19) open Mining/Exploration events, most overdue vs targetCloseDate first, top 15 (config.OPEN_INCIDENTS_SHOWN); completion = currentStep; no free-text description (names people, BAC breaches)
+  contractor: (2026-10-19) people-feed employer - actions by assigneeId then name; incidents by the reportedTo person's employer (Neil chose); events.company is always null
+  es_nonconformances: (2026-10-19) Neil - 'use the data from NMG CPO ERT dashboard', item = coverage below minimum. ertdials.py reads the 3 dial rows (day/night/total) off the public ERT Pages site; lists dials under min as 'Short by N'; unread -> page note + ::warning::, build carries on
   privacy: public Pages site -> counts and rates only, EXCEPT the Outstanding corrective actions list, which shows each open action text and actionee name (Neil asked 2026-10-11)
 next: Neil sets PT_WEB_USERNAME + PT_WEB_PASSWORD secrets -> run workflow -> confirm page note says "As shown on PeopleTray"; revoke unused PAGES_TOKEN PAT
 publish: workflow dashboard.yml (05:30 + 12:00 AWST, manual dispatch) pushes via SSH deploy key - secret SITE_DEPLOY_KEY, deploy key "nmg-ohs-dashboard workflow" on the site repo. PAGES_TOKEN secret is unused (PAT lacked write, and was pasted in chat) - delete/revoke.

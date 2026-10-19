@@ -99,3 +99,6 @@ SERIES_COLOURS = {MINING: NAVY, EXPLORATION: GOLD}
 TREND_GROUPS = ("Injury", NEAR_MISS_ROW, "Property Damage / Loss",
                 "Procedural Compliance", "Production Loss", "Other")
 TREND_COLOURS = (NAVY, RIVER, GOLD, "#D8C8A2", "#8498A2", "#99999A")
+
+# The open incidents table shows this many, most overdue first (Neil, 2026-10-19).
+OPEN_INCIDENTS_SHOWN = 15

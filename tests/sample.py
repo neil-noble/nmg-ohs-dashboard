@@ -7,13 +7,14 @@ FAKE_NAME = "Zebedee Quixote"
 
 
 def event(event_id, day, workgroup, event_type, sub_type=None, injury_type="",
-          status="Closed and Saved"):
+          status="Closed and Saved", target=None, reported_to=FAKE_NAME, step="Save and Close"):
     return {
         "eventId": event_id, "eventDateTime": f"{day}T08:00:00", "eventDate": "",
         "workGroup": workgroup, "eventType": event_type, "eventSubType": sub_type,
         "injuryType": injury_type, "eventStatus": status,
         "reportedBy": FAKE_NAME, "person": FAKE_NAME,
         "shortDescription": "Quixote slipped near the workshop", "location": "Workshop bay 3",
+        "targetCloseDateTime": target, "reportedTo": reported_to, "currentStep": step,
     }
 
 
@@ -31,16 +32,16 @@ def hours(workgroup, year, month, value):
 
 
 def person(workgroup, employer="New Murchison Gold Ltd", kind="Full time",
-           commenced="2025-01-01T00:00:00", ceased=None):
-    return {"firstName": "Zebedee", "lastName": "Quixote", "workGroup": workgroup,
+           commenced="2025-01-01T00:00:00", ceased=None, pid=None, first="Zebedee", last="Quixote"):
+    return {"id": pid, "firstName": first, "lastName": last, "workGroup": workgroup,
             "employer": employer, "emplpyeeType": kind,
             "dateCommenced": commenced, "dateCeased": ceased}
 
 
 def action(status, due=None, completed=None, assignee=FAKE_NAME,
            required="Quixote to replace the guard", created="2026-09-01T00:00:00",
-           workgroup="CPO - Ozland", reminder=2):
-    return {"actionStatus": status, "dueDate": due, "completedDate": completed,
+           workgroup="CPO - Ozland", reminder=2, assignee_id=None):
+    return {"assigneeId": assignee_id, "actionStatus": status, "dueDate": due, "completedDate": completed,
             "assignee": assignee, "requiredAction": required, "createdDate": created,
             "assigneeWorkgroup": workgroup, "reminderDays": reminder}
 
@@ -55,7 +56,8 @@ EVENTS = [
     event(3, "2026-08-14", "GG - Exploration", "Injury", "Medical Treatment Injury", "LTI (Lost Time Injury) "),
     event(4, "2026-08-25", "CPO - Ozland", "Injury", "No Treatment Required", "NWR (Non Work Related) "),
     event(5, "2026-09-05", "CPO - Tech Services", "Near Miss", "Near Miss (Other)"),
-    event(6, "2026-09-20", "CPO - MLG", "Near Miss", "Near Miss (Other)", status="Open Workflow"),
+    event(6, "2026-09-20", "CPO - MLG", "Near Miss", "Near Miss (Other)", status="Open Workflow",
+          target="2026-10-05T00:00:00", reported_to="Otto  owner", step="Assess the Event"),
     event(7, "2026-09-27", "CPO - Ozland", "Property Damage / Loss"),
     event(8, "2026-07-25", "GG - Exploration", "Violence"),
     event(9, "2026-08-02", "Contractors - Other", "Security"),
@@ -93,6 +95,9 @@ PEOPLE = [
     person("PER - Finance"),
     person("CPO - Management", commenced="2026-10-05T00:00:00"),
     person("GG - Exploration", ceased="2026-09-15T00:00:00"),
+    person("CPO - MLG", employer="Acme Haulage", kind="Contractor", pid=501, first="Otto", last="OWNER"),
+    person("CPO - Ozland", employer="Petra & Sons", kind="Contractor", pid=502, first="Petra",
+           last="ACTIONEE"),
 ]
 
 ACTIONS = [

@@ -1,6 +1,7 @@
 """Build docs/index.html from live PeopleTray data."""
 from pathlib import Path
 
+import ertdials
 import fetch
 import metrics
 import periods
@@ -27,12 +28,23 @@ def read_web_charts(fetcher=webcharts.fetch_web_charts):
         return None, str(error)
 
 
+def read_ert_dials(fetcher=ertdials.fetch_ert_dials):
+    """(dials, error). An unreadable ERT dashboard must not stop this one."""
+    try:
+        return fetcher(), None
+    except ertdials.ErtDialsError as error:
+        return None, str(error)
+
+
 def warnings(report, web_error=None):
     """One line for everything the figures leave out, for the workflow log."""
     lines = []
     if web_error:
         lines.append(f"PeopleTray web charts not read ({web_error}); SHEQ Actions and Open "
                      "Workflows are showing API figures")
+    if report.get("ert_error"):
+        lines.append(f"ERT dashboard not read ({report['ert_error']}); Emergency Services "
+                     "non-conformances are not shown")
     if report["unmapped"]:
         names = ", ".join(" ".join(name.split()) for name in report["unmapped"])
         lines.append(f"Unmapped workgroups left out of the figures: {names}")
@@ -48,6 +60,7 @@ def main():
     today = periods.today_perth()
     raw = fetch.fetch_all(today)
     raw["web_charts"], raw["web_error"] = read_web_charts()
+    raw["ert_dials"], raw["ert_error"] = read_ert_dials()
     report = build(raw, today, periods.now_label())
     print(f"Built {OUTPUT} for {report['month_label']} (charts from {report['charts_source']})")
     for line in warnings(report, raw["web_error"]):
