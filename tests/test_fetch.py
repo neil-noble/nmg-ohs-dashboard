@@ -81,7 +81,8 @@ def test_fetch_all_window_and_keys():
         return feeds(path, params)
 
     raw = fetch.fetch_all(date(2026, 10, 11), get=fake_get)
-    assert set(raw) == {"events", "injuries", "hours", "actions", "people", "checklists"}
+    assert set(raw) == {"events", "injuries", "hours", "actions", "people", "checklists",
+                        "roster", "shifttypes", "competencies"}
     window = {"fromDate": "2024-11-01", "toDate": "2026-10-12"}
     assert ("/api/v2/powerbi/events", window) in seen
     assert ("/api/v2/powerbi/eventinjurylist", window) in seen
@@ -89,6 +90,9 @@ def test_fetch_all_window_and_keys():
     assert ("/api/v2/powerbi/actions", dict(window, fromDate="2020-01-01")) in seen   # full history
     assert ("/api/v2/powerbi/people", None) in seen
     assert ("/api/v2/powerbi/checklistslite", dict(window, fromDate="2020-01-01")) in seen
+    assert ("/api/v2/powerbi/personrosterssinglesite",
+            {"fromDate": "2026-07-01", "toDate": "2026-10-11"}) in seen               # FY to date
+    assert ("/api/v2/powerbi/shifttypes", None) in seen
 
 
 def test_fetch_all_rejects_a_non_list_response():
@@ -125,3 +129,21 @@ def test_action_fields_for_the_outstanding_list_are_required():
     assert {"assignee", "requiredAction", "createdDate", "reminderDays",
             "assigneeWorkgroup"} <= set(fetch.REQUIRED_KEYS["actions"])
     assert set(fetch.REQUIRED_KEYS["checklists"]) == {"checklistName", "workflowStatus"}
+
+
+def test_paged_competency_feed_is_followed_to_the_last_page():
+    pages = {
+        None: {"data": [{"n": 1}, {"n": 2}],
+               "nextPageLink": peopletray.BASE_URL + "/api/v2/powerbi/personworkrolecompetencycompliance?cursor=2"},
+        "cursor": {"data": [{"n": 3}], "nextPageLink": None},
+    }
+    paths = []
+
+    def get(path, params=None):
+        paths.append(path)
+        return pages["cursor" if "cursor" in path else None]
+
+    rows = fetch._all_pages(get, "/api/v2/powerbi/personworkrolecompetencycompliance", None)
+    assert rows == [{"n": 1}, {"n": 2}, {"n": 3}]
+    assert paths[1] == "/api/v2/powerbi/personworkrolecompetencycompliance?cursor=2"
+    assert fetch._all_pages(lambda path, params: [{"a": 1}], "/x", None) == [{"a": 1}]

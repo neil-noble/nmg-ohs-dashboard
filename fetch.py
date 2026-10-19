@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 import peopletray
-from periods import add_months, reporting_month
+from periods import add_months, fy_start, reporting_month
 
 PATHS = {
     "events": "/api/v2/powerbi/events",
@@ -11,8 +11,11 @@ PATHS = {
     "actions": "/api/v2/powerbi/actions",
     "people": "/api/v2/powerbi/people",
     "checklists": "/api/v2/powerbi/checklistslite",
+    "roster": "/api/v2/powerbi/personrosterssinglesite",
+    "shifttypes": "/api/v2/powerbi/shifttypes",
+    "competencies": "/api/v2/powerbi/personworkrolecompetencycompliance",
 }
-_UNDATED = ("people",)
+_UNDATED = ("people", "shifttypes", "competencies")
 # Feeds that are never legitimately empty; an empty one means PeopleTray is not answering properly.
 _CORE = ("events", "hours", "people")
 # Every field the dashboard reads, as seen in the live feeds on 2026-10-11. A renamed
@@ -27,9 +30,27 @@ REQUIRED_KEYS = {
     "actions": ("actionStatus", "dueDate", "completedDate", "assignee", "requiredAction",
                 "createdDate", "reminderDays", "assigneeWorkgroup", "assigneeId"),
     "checklists": ("checklistName", "workflowStatus"),
-    "people": ("id", "firstName", "lastName", "workGroup", "employer", "emplpyeeType",
-               "dateCommenced", "dateCeased"),
+    "people": ("id", "employeeId", "firstName", "lastName", "workGroup", "workRoles", "employer",
+               "emplpyeeType", "dateCommenced", "dateCeased"),
+    "roster": ("personId", "rosterDate", "shiftTypeId"),
+    "shifttypes": ("id", "isDayshift", "isNightshift"),
+    "competencies": ("employeeId", "workRole", "competencyName", "competencyStatus",
+                     "competencyIssueDate", "competencyExpiryDate"),
 }
+
+
+def _all_pages(get, path, params):
+    """A feed's rows. The competency feed is paged (100 a page); the others come back whole."""
+    rows = []
+    while True:
+        answer = get(path, params)
+        if not (isinstance(answer, dict) and "data" in answer):
+            return answer if not rows else rows + list(answer)
+        rows.extend(answer["data"] or [])
+        following = answer.get("nextPageLink")
+        if not following:
+            return rows
+        path, params = following.replace(peopletray.BASE_URL, ""), None
 
 
 def fetch_all(today, get=peopletray.get):
@@ -41,7 +62,11 @@ def fetch_all(today, get=peopletray.get):
     # all time, and a workflow can sit open for longer than the reporting window.
     windows = {name: window for name in PATHS}
     windows["actions"] = windows["checklists"] = dict(window, fromDate="2020-01-01")
-    raw = {name: get(path, None if name in _UNDATED else windows[name]) for name, path in PATHS.items()}
+    # Ozland's ERT record runs from the start of the financial year to today.
+    fy = fy_start((today.year, today.month))
+    windows["roster"] = {"fromDate": f"{fy[0]}-{fy[1]:02d}-01", "toDate": today.isoformat()}
+    raw = {name: _all_pages(get, path, None if name in _UNDATED else windows[name])
+           for name, path in PATHS.items()}
     for name, rows in raw.items():
         # An error object or an empty answer with HTTP 200 must not become an empty dashboard.
         if not isinstance(rows, list):

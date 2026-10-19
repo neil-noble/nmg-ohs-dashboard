@@ -15,7 +15,8 @@ def test_report_keys(report):
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
-                           "charts_source", "open_incidents", "ert", "ert_error"}
+                           "charts_source", "open_incidents", "ert", "ert_error",
+                           "ozland_ert"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -265,3 +266,27 @@ def test_ert_shortfalls_list_only_dials_below_minimum():
         "rows": [{"shift": "Day shift", "competency": "HAZMAT", "held": 1, "minimum": 4,
                   "status": "Short by 3"}]}
     assert metrics.build_ert_shortfalls(None) is None
+
+
+def test_ozland_ert_obligation_day_by_day(report):
+    from datetime import date
+    oz = report["ozland_ert"]
+    assert oz["fy_start"] == date(2026, 7, 1)
+    assert [(d["label"], d["day_shift"], d["night_shift"], d["met"]) for d in oz["days"]] == [
+        ("8 Oct 2026", 2, 1, False),      # 604 not qualified until HAZMAT on 10 Oct
+        ("10 Oct 2026", 2, 2, True),      # a duplicate roster row counts once
+        ("11 Oct 2026", 1, 2, False),     # RR, NMG staff and a 5-of-6 member do not count
+    ]
+    assert (oz["met"], oz["missed"]) == (1, 2)
+
+
+def test_expired_competency_stops_counting():
+    people = [sample.person("CPO - Ozland", employer="Ozland Drill and Blast", pid=1,
+                            roles=("ERT Member",))]
+    comps = ([sample.competency("E1", name) for name in sample.ALL_SIX[1:]]
+             + [sample.competency("E1", sample.ALL_SIX[0], expires="2026-10-09T00:00:00")])
+    roster = [sample.rostered(1, "2026-10-08", sample.DAY), sample.rostered(1, "2026-10-09", sample.DAY)]
+    oz = metrics.build_ozland_ert(people, roster, sample.SHIFT_TYPES, comps, sample.TODAY)
+    assert [d["day_shift"] for d in oz["days"]] == [1, 0]
+    empty = metrics.build_ozland_ert([], [], [], [], sample.TODAY)
+    assert empty["days"] == [] and empty["met"] == 0

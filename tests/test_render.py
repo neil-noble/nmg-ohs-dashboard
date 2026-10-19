@@ -55,7 +55,8 @@ def test_kpi_tiles(page):
 
 
 def test_charts_are_inline_svg_with_month_labels(page):
-    assert page.count("<svg") == 7    # TRIFR, LTIFR, event trend, two donuts, workflow pie, action bars
+    assert page.count("<svg") == 8    # TRIFR, LTIFR, event trend, two donuts, workflow pie, action bars,
+                                      # Ozland ERT obligation
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
     assert "NaN" not in page and ">None<" not in page
@@ -224,3 +225,18 @@ def test_ert_section_when_all_met_or_unread(report):
     assert "at or above its minimum" in section_of(met, "ert-shortfalls")
     unread = render.render(dict(report, ert=None))
     assert "could not be read" in section_of(unread, "ert-shortfalls")
+
+
+def test_ozland_ert_bars_are_green_or_red_with_percentages(page):
+    section = section_of(page, "ozland-ert")
+    assert section.count("<rect") == 3
+    assert section.count('fill="#2E9E44"><title>') == 1 and section.count('fill="#D94F32"><title>') == 2
+    assert "33%" in section and "1 of 3 days" in section
+    assert "67%" in section and "2 of 3 days" in section
+    assert "10 Oct 2026: 2 qualified on day shift, 2 on night shift - met" in section
+    assert "no roster before 8 Oct 2026" in section
+
+
+def test_ozland_ert_with_no_roster(report):
+    page = render.render(dict(report, ozland_ert=dict(report["ozland_ert"], days=[], met=0, missed=0)))
+    assert "no roster for this financial year" in section_of(page, "ozland-ert")

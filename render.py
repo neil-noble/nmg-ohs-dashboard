@@ -81,6 +81,8 @@ color:var(--muted)}
 .cards div{background:var(--canvas);border-radius:3px;padding:10px 4px}
 .cards b{display:block;font-size:28px;font-weight:700;color:var(--navy);line-height:1.1}
 .cards b.alert{color:#A4262C}
+.cards b.ok{color:#2E9E44}
+.cards.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px}
 .cards span{font-size:11px;color:var(--muted)}
 .actions th,.actions td{text-align:left;vertical-align:top}
 .actions td:nth-child(n+2){white-space:nowrap}
@@ -105,6 +107,7 @@ DONUT_R = 15.915          # circumference 100, so dash lengths are percentages
 RED = "#A4262C"
 OPEN_CLOSED_COLOURS = (RED, config.RIVER)
 SHEQ_COLOURS = ("#B5B5B0", "#2E9E44", "#D94F32")        # assigned, due, overdue - as PeopleTray
+MET_COLOUR, MISSED_COLOUR = "#2E9E44", "#D94F32"
 PIE_COLOURS = (config.RIVER, config.GOLD, config.NAVY, "#D8C8A2", "#8498A2", config.PALE_GOLD,
                "#AAC2C5", "#99999A", config.SAND, config.BLACK, "#C9B894", "#3D6B70", "#5B4718",
                "#2F5F7A")
@@ -423,6 +426,64 @@ def _open_incidents(report):
     return _visual(12, "Open incidents", inner, "open-incidents", sub=sub)
 
 
+def _ozland_chart(days):
+    """One bar per rostered day: qualified Ozland ERT members on site, green when both shifts
+    had their two, red when not. A day with nobody qualified still gets a red stub."""
+    width, right = 1100, 12
+    required = 2 * config.OZLAND_ERT_PER_SHIFT
+    top = max(max((d["day_shift"] + d["night_shift"] for d in days), default=0), required) + 1
+    parts, y = _axes(top, width, right)
+    slot = (width - LEFT - right) / len(days)
+    bar = max(slot * 0.7, 1)
+    for i, d in enumerate(days):
+        n = d["day_shift"] + d["night_shift"]
+        x = LEFT + slot * i + (slot - bar) / 2
+        tall = max(y(0) - y(n), 3)
+        colour = MET_COLOUR if d["met"] else MISSED_COLOUR
+        tip = (f'{d["label"]}: {d["day_shift"]} qualified on day shift, {d["night_shift"]} on night '
+               f'shift - {"met" if d["met"] else "not met"}')
+        parts.append(f'<rect x="{x:.1f}" y="{y(0) - tall:.1f}" width="{bar:.1f}" height="{tall:.1f}" '
+                     f'fill="{colour}"><title>{escape(tip)}</title></rect>')
+        if i == 0 or d["day"].day == 1:
+            parts.append(f'<text class="tick" x="{x:.1f}" y="{H - 9}">{escape(d["label"][:-5])}</text>')
+    parts.append(f'<line x1="{LEFT}" x2="{width - right}" y1="{y(required):.1f}" y2="{y(required):.1f}" '
+                 f'stroke="{config.NAVY}" stroke-width="1.5" stroke-dasharray="5 4"/>'
+                 f'<text class="tick" x="{width - right}" y="{y(required) - 5:.1f}" text-anchor="end">'
+                 f"required: {config.OZLAND_ERT_PER_SHIFT} day + {config.OZLAND_ERT_PER_SHIFT} night</text>")
+    # Too many days to read squeezed onto a phone, so it scrolls sideways there instead.
+    return (f'<div class="scroll"><svg viewBox="0 0 {width} {H}" style="min-width:720px" role="img" '
+            f'aria-label="Ozland ERT obligation by day">{"".join(parts)}</svg></div>')
+
+
+def _ozland_ert(report):
+    oz = report["ozland_ert"]
+    days = oz["days"]
+    if not days:
+        inner = '<p class="note">PeopleTray holds no roster for this financial year yet.</p>'
+        return _visual(12, "Ozland ERT obligation", inner, "ozland-ert")
+    total = len(days)
+    met_pct, missed_pct = oz["met"] / total * 100, oz["missed"] / total * 100
+    start = days[0]["label"]
+    late_start = days[0]["day"] > oz["fy_start"]
+    inner = (_ozland_chart(days)
+             + _legend([("Obligation met", MET_COLOUR), ("Not met", MISSED_COLOUR)])
+             + f'<div class="cards two"><div><b class="ok">{met_pct:.0f}%</b>'
+             f'<span>Compliant &ndash; {oz["met"]} of {total} days</span></div>'
+             f'<div><b class="alert">{missed_pct:.0f}%</b>'
+             f'<span>Not compliant &ndash; {oz["missed"]} of {total} days</span></div></div>'
+             f'<p class="note">Ozland must provide {config.OZLAND_ERT_PER_SHIFT} qualified ERT members on '
+             f"day shift and {config.OZLAND_ERT_PER_SHIFT} on night shift. Qualified means Competent in all "
+             "six ERT competencies (Advanced First Aid, Road Crash Rescue, Fire Team Operations, Open "
+             "Circuit BA, HAZMAT, Vertical Rescue). Each bar is the number of qualified Ozland ERT "
+             "members rostered on that day, from the PeopleTray roster; hover a bar for the day and "
+             "night split."
+             + (f" PeopleTray holds no roster before {escape(start)}, so the record starts there "
+                "rather than at 1 July." if late_start else "")
+             + "</p>")
+    return _visual(12, "Ozland ERT obligation", inner, "ozland-ert",
+                   sub=f"{start} to {days[-1]['label']}, financial year to date")
+
+
 def _ert_shortfalls(report):
     ert = report["ert"]
     if ert is None:
@@ -481,6 +542,7 @@ def render(report):
     main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
                     _event_trend(report), _event_status(report), _open_workflows(report),
                     _sheq_actions(report), _open_incidents(report), _ert_shortfalls(report),
+                    _ozland_ert(report),
                     _open_actions(report),
                     _injuries(report), _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'

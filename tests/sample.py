@@ -32,8 +32,10 @@ def hours(workgroup, year, month, value):
 
 
 def person(workgroup, employer="New Murchison Gold Ltd", kind="Full time",
-           commenced="2025-01-01T00:00:00", ceased=None, pid=None, first="Zebedee", last="Quixote"):
-    return {"id": pid, "firstName": first, "lastName": last, "workGroup": workgroup,
+           commenced="2025-01-01T00:00:00", ceased=None, pid=None, first="Zebedee", last="Quixote",
+           roles=("*Permanent / Long Term Worker",)):
+    return {"id": pid, "employeeId": f"E{pid}" if pid else "", "workRoles": list(roles),
+            "firstName": first, "lastName": last, "workGroup": workgroup,
             "employer": employer, "emplpyeeType": kind,
             "dateCommenced": commenced, "dateCeased": ceased}
 
@@ -116,5 +118,49 @@ CHECKLISTS = [
     checklist("Uniform Order"),
 ]
 
+ALL_SIX = ("HLTAID014 Provide Advanced First Aid", "PUASAR024 Undertake road crash rescue",
+           "RIIERR201E Conduct fire team operations", "PUAFIR207 Operate breathing apparatus open circuit",
+           "PUAFIR306 Identify, detect and monitor hazardous materials at an incident",
+           "PUASAR032 Undertake vertical rescue")
+
+
+def competency(employee, name, status="Competent", issued=None, expires=None, role="ERT Member"):
+    return {"employeeId": employee, "workRole": role, "competencyName": f"ERT: {name}",
+            "competencyStatus": status, "competencyIssueDate": issued, "competencyExpiryDate": expires}
+
+
+def rostered(pid, day, shift):
+    return {"personId": pid, "rosterDate": f"{day}T00:00:00", "shiftTypeId": shift}
+
+
+DAY, NIGHT, RR = 1, 2, 3
+SHIFT_TYPES = [{"id": DAY, "isDayshift": True, "isNightshift": False},
+               {"id": NIGHT, "isDayshift": False, "isNightshift": True},
+               {"id": RR, "isDayshift": False, "isNightshift": False}]
+
+# Ozland ERT members 601-605 and one NMG ERT member, 606. 601-603 and 606 hold all six; 604 gets
+# HAZMAT on 10 Oct; 605 never has Vertical Rescue.
+ERT_PEOPLE = [person("CPO - Ozland", employer="Ozland Drill and Blast", kind="Contractor", pid=n,
+                     first="Ert", last=f"MEMBER{n}", roles=("ERT Member",)) for n in range(601, 606)]
+ERT_PEOPLE.append(person("CPO - Geology", pid=606, first="Ert", last="NMG", roles=("ERT Member",)))
+COMPETENCIES = (
+    [competency(f"E{n}", name) for n in (601, 602, 603, 606) for name in ALL_SIX]
+    + [competency("E604", name) for name in ALL_SIX[:4] + ALL_SIX[5:]]
+    + [competency("E604", ALL_SIX[4], issued="2026-10-10T00:00:00")]
+    + [competency("E605", name) for name in ALL_SIX[:5]]
+    + [competency("E605", ALL_SIX[5], status="WR Requirement")]
+)
+ROSTER = (
+    [rostered(601, "2026-10-08", DAY), rostered(602, "2026-10-08", DAY),
+     rostered(603, "2026-10-08", NIGHT), rostered(604, "2026-10-08", NIGHT)]           # 604 not yet
+    + [rostered(601, "2026-10-10", DAY), rostered(601, "2026-10-10", DAY), rostered(602, "2026-10-10", DAY),
+       rostered(603, "2026-10-10", NIGHT), rostered(604, "2026-10-10", NIGHT)]        # met
+    + [rostered(601, "2026-10-11", DAY), rostered(602, "2026-10-11", RR), rostered(606, "2026-10-11", DAY),
+       rostered(605, "2026-10-11", DAY), rostered(603, "2026-10-11", NIGHT),
+       rostered(604, "2026-10-11", NIGHT)]                                              # day short
+    + [rostered(1, "2026-10-12", DAY)]                                                  # future
+)
+
 RAW = {"events": EVENTS, "injuries": INJURIES, "hours": HOURS,
-       "actions": ACTIONS, "people": PEOPLE, "checklists": CHECKLISTS}
+       "actions": ACTIONS, "people": PEOPLE + ERT_PEOPLE, "checklists": CHECKLISTS,
+       "roster": ROSTER, "shifttypes": SHIFT_TYPES, "competencies": COMPETENCIES}

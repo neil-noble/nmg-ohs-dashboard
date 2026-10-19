@@ -1,6 +1,7 @@
 """Raw PeopleTray lists in, one report dict out. Pure functions, no I/O."""
 import calendar
 from collections import Counter
+from datetime import date
 
 import config
 from periods import (add_months, fy_start, long_label, month_end, month_range, parse_day,
@@ -445,6 +446,62 @@ def build_sheq_actions(actions, today):
     return [("Assigned", assigned), ("Due", due), ("Overdue", overdue)]
 
 
+def _qualified_on(competencies, day):
+    """Employee ids Competent in every ERT qualification on `day`.
+
+    A competency counts from its issue date to its expiry date; most carry neither, and then
+    count throughout.
+    """
+    held = {}
+    for c in competencies:
+        name = _text(c.get("competencyName"))
+        if c.get("workRole") != config.ERT_WORK_ROLE or not name.startswith("ERT: "):
+            continue
+        if _text(c.get("competencyStatus")) != "Competent":
+            continue
+        issued, expires = parse_day(c.get("competencyIssueDate")), parse_day(c.get("competencyExpiryDate"))
+        if (issued and issued > day) or (expires and expires <= day):
+            continue
+        code = name[len("ERT: "):].split()[0] if name[len("ERT: "):].split() else ""
+        held.setdefault(_text(c.get("employeeId")), set()).add(code)
+    return {emp for emp, codes in held.items() if set(config.ERT_QUALIFICATIONS) <= codes}
+
+
+def build_ozland_ert(people, roster, shift_types, competencies, today):
+    """Did Ozland have 2 qualified ERT members on day shift and 2 on night shift, day by day?
+
+    Counted the way the ERT dashboard counts its dials: today's ERT Members (work role), rostered
+    on a shift PeopleTray flags as day or night. Days before PeopleTray holds a roster are left
+    out rather than counted as a miss.
+    """
+    shifts = {s.get("id"): s for s in shift_types}
+    ozland = {p.get("id"): _text(p.get("employeeId")) for p in people
+              if config.ERT_WORK_ROLE in (p.get("workRoles") or [])
+              and config.OZLAND_EMPLOYER in _text(p.get("employer")).lower()}
+    on_shift, rostered = {}, set()
+    for r in roster:
+        day = parse_day(r.get("rosterDate"))
+        if day is None or day > today:
+            continue
+        rostered.add(day)
+        if r.get("personId") not in ozland:
+            continue
+        shift = shifts.get(r.get("shiftTypeId")) or {}
+        which = "day" if shift.get("isDayshift") else "night" if shift.get("isNightshift") else None
+        if which:
+            on_shift.setdefault((day, which), set()).add(ozland[r.get("personId")])
+    days = []
+    for day in sorted(rostered):
+        qualified = _qualified_on(competencies, day)
+        crew = {which: len(on_shift.get((day, which), set()) & qualified) for which in ("day", "night")}
+        days.append({"day": day, "label": _day_label(day), "day_shift": crew["day"],
+                     "night_shift": crew["night"],
+                     "met": min(crew.values()) >= config.OZLAND_ERT_PER_SHIFT})
+    met = sum(1 for d in days if d["met"])
+    return {"days": days, "met": met, "missed": len(days) - met,
+            "fy_start": date(*fy_start((today.year, today.month)), 1)}
+
+
 def build_report(raw, today, generated):
     month = add_months((today.year, today.month), -1)
     issues = new_issues()
@@ -478,6 +535,8 @@ def build_report(raw, today, generated):
         "open_incidents": build_open_incidents(raw["events"], raw["people"], today),
         "ert": build_ert_shortfalls(raw.get("ert_dials")),
         "ert_error": raw.get("ert_error"),
+        "ozland_ert": build_ozland_ert(raw["people"], raw.get("roster", []), raw.get("shifttypes", []),
+                                       raw.get("competencies", []), today),
         "open_workflows": open_workflows,
         "sheq_actions": sheq_actions,
         "charts_source": source,
