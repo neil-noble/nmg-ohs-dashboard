@@ -40,13 +40,15 @@ def test_header_shows_month_and_timestamp(page):
 
 
 def test_table_rows_and_cells(page):
-    assert "<th>Mining</th>" not in page          # bucket headings span two columns
-    assert re.search(r'colspan="2"[^>]*>Mining<', page)
-    assert re.search(r'colspan="2"[^>]*>Exploration<', page)
-    assert re.search(r"<th[^>]*>Total Person Hours Worked</th><td>30,500</td><td>90,500</td>"
-                     r"<td>3,000</td><td>6,500</td>", page)
-    assert re.search(r"<th[^>]*>Lost Time Injury Freq Rate \(LTIFR\)</th><td>NA</td><td>0.00</td>"
-                     r"<td>NA</td><td>64.52</td>", page)
+    table = section_of(page, "event-table")
+    assert "<th>Mining</th>" not in table          # bucket headings span Jul, Aug, Sep and FYTD
+    assert re.search(r'colspan="4"[^>]*>Mining<', table)
+    assert re.search(r'colspan="4"[^>]*>Exploration<', table)
+    assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>FYTD</th>") == 2
+    assert re.search(r"<th[^>]*>Total Person Hours Worked</th>(<td>[^<]*</td>){2}<td>30,500</td>"
+                     r"<td>90,500</td>(<td>[^<]*</td>){2}<td>3,000</td><td>6,500</td>", table)
+    assert re.search(r"<th[^>]*>Lost Time Injury Freq Rate \(LTIFR\)</th><td>NA</td><td>NA</td>"
+                     r"<td>NA</td><td>0.00</td><td>NA</td><td>NA</td><td>NA</td><td>64.52</td>", table)
 
 
 def test_kpi_tiles(page):
@@ -56,8 +58,8 @@ def test_kpi_tiles(page):
 
 
 def test_charts_are_inline_svg_with_month_labels(page):
-    assert page.count("<svg") == 8    # rates, event trend, two donuts, workflow pie, action bars,
-                                      # near miss and hazard reporting for Mining and for Exploration
+    assert page.count("<svg") == 10   # rates for Mining, Exploration and combined, event bars, two
+                                      # donuts, workflow pie, action bars, reporting for each area
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
     assert "NaN" not in page and ">None<" not in page
@@ -95,7 +97,7 @@ def test_empty_report_renders():
     raw = {"events": [], "injuries": [], "hours": [], "actions": [], "people": []}
     page = render.render(metrics.build_report(raw, sample.TODAY, "x"))
     assert "No injuries recorded in the last 12 months" in page
-    assert page.count("<svg") == 7                # no pie when nothing is open
+    assert page.count("<svg") == 9                # no pie when nothing is open
     assert "No open workflows" in page
     assert "NaN" not in page and "nan%" not in page
 
@@ -128,10 +130,14 @@ def test_line_charts_label_the_latest_value(page):
     assert page.count('class="dlabel"') >= 4      # last point of each series on both rate charts
 
 
-def test_events_by_month_is_a_line_chart(page):
-    section = re.search(r'id="event-trend".*?</section>', page, re.S).group()
-    assert section.count("<polyline") == len(config.TREND_GROUPS)     # one line per event type
-    assert "<rect" not in section
+def test_events_by_month_is_a_bar_for_each_type_in_each_month(page, report):
+    section = section_of(page, "event-trend")
+    assert "<polyline" not in section
+    nonzero = sum(1 for _, values in report["event_trend"]["series"] for v in values if v)
+    assert section.count("<rect") == nonzero                 # zero months draw no bar
+    assert "Sep 26 \u2013 Injury: " in section                # each bar says what it is
+    for name in config.TREND_GROUPS:
+        assert name in section
 
 
 def test_outstanding_actions_are_listed_with_their_actionee(page):
@@ -226,7 +232,8 @@ def test_visuals_sit_under_their_section(page):
 
     summary = ("kpis",)
     leading = ("reporting-trend", "reporting-trend-mining", "reporting-trend-exploration", "reporting-table", "status", "sheq-actions", "open-workflows", "open-actions")
-    lagging = ("rate-trends", "event-table", "injury-classes", "event-mix", "event-trend",
+    lagging = ("rate-trends", "rate-trend-mining", "rate-trend-exploration", "rate-trend-combined",
+               "event-table", "injury-classes", "event-mix", "event-trend",
                "event-status", "injury-analysis", "open-incidents")
     emergency = ("ert-dashboard",)
     assert all(at(v) < at("health-safety") for v in summary)
@@ -238,15 +245,13 @@ def test_visuals_sit_under_their_section(page):
     assert ">Leading indicators<" in page and ">Lagging indicators<" in page
 
 
-def test_trifr_and_ltifr_share_one_chart(page):
-    section = section_of(page, "rate-trends")
-    assert "TRIFR and LTIFR 12 Month Trend" in section
-    assert section.count("<svg") == 1
-    assert section.count("<polyline") == 4                   # TRIFR and LTIFR, Mining and Exploration
-    assert section.count(f'stroke-dasharray="{render.RATE_DASH}"') == 2      # LTIFR lines are dashed
-    assert section.count('class="dash"') == 2                # and so are their legend swatches
-    for name in ("TRIFR Mining", "TRIFR Exploration", "LTIFR Mining", "LTIFR Exploration"):
-        assert name in section
+def test_trifr_and_ltifr_for_mining_exploration_and_combined(page):
+    for area in ("mining", "exploration", "combined"):
+        section = section_of(page, f"rate-trend-{area}")
+        assert f"TRIFR and LTIFR \u2013 {area.title()}" in section
+        assert section.count("<svg") == 1 and section.count("<polyline") == 2
+        assert section.count(f'stroke-dasharray="{render.RATE_DASH}"') == 1     # LTIFR is dashed
+    assert "both areas&rsquo; hours" in section_of(page, "rate-trend-combined")
     assert "TRIFR 12 Month Trend<" not in page and "LTIFR 12 Month Trend<" not in page
 
 

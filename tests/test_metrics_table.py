@@ -19,6 +19,11 @@ def row(table, label):
     return next(r for r in table if r["label"] == label)["cells"]
 
 
+def month_and_fytd(cells):
+    """September and FYTD for Mining then Exploration, out of Jul, Aug, Sep, FYTD for each."""
+    return [cells[2], cells[3], cells[6], cells[7]]
+
+
 def test_normalise_drops_excluded_hidden_and_not_counted(data):
     events, _, _ = data
     assert sorted(e["id"] for e in events) == [1, 2, 3, 5, 6, 7, 8, 9, 12, 14]
@@ -122,21 +127,44 @@ def test_head_count_boundaries():
 def test_table_for_september_2026(data):
     events, hours, _ = data
     table = metrics.build_table(events, hours, sample.PEOPLE, sample.MONTH)
-    assert row(table, "Lost Time Injury") == ["–", "–", "–", "1"]
-    assert row(table, "Restricted Work Injury") == ["–", "–", "–", "–"]
-    assert row(table, "First Aid Injury") == ["2", "2", "–", "–"]
-    assert row(table, "No Treatment Injury") == ["–", "–", "–", "–"]   # June is last FY
-    assert row(table, "Total Injuries") == ["2", "2", "–", "1"]
-    assert row(table, "Near Miss") == ["2", "2", "–", "–"]
-    assert row(table, "Lost Workdays") == ["–", "–", "–", "open"]
-    assert row(table, "Lost Time Injury Freq Rate (LTIFR)") == ["NA", "0.00", "NA", "64.52"]
-    assert row(table, "Total Recordable Injury Freq Rate (TRIFR)") == ["NA", "0.00", "NA", "64.52"]
-    assert row(table, "Environmental Incidents") == ["–", "–", "–", "–"]
-    assert row(table, "Property Damage / Loss") == ["1", "1", "–", "–"]
-    assert row(table, "Security Incident / Violence") == ["–", "1", "–", "1"]
-    assert row(table, "Misfire") == ["1", "1", "–", "–"]
-    assert row(table, "NMG Head Count") == ["2", "NA", "1", "NA"]
-    assert row(table, "Total Person Hours Worked") == ["30,500", "90,500", "3,000", "6,500"]
+    assert month_and_fytd(row(table, "Lost Time Injury")) == ["–", "–", "–", "1"]
+    assert month_and_fytd(row(table, "Restricted Work Injury")) == ["–", "–", "–", "–"]
+    assert month_and_fytd(row(table, "First Aid Injury")) == ["2", "2", "–", "–"]
+    assert month_and_fytd(row(table, "No Treatment Injury")) == ["–", "–", "–", "–"]   # June is last FY
+    assert month_and_fytd(row(table, "Total Injuries")) == ["2", "2", "–", "1"]
+    assert month_and_fytd(row(table, "Near Miss")) == ["2", "2", "–", "–"]
+    assert month_and_fytd(row(table, "Lost Workdays")) == ["–", "–", "–", "open"]
+    assert month_and_fytd(row(table, "Lost Time Injury Freq Rate (LTIFR)")) == ["NA", "0.00", "NA", "64.52"]
+    assert month_and_fytd(row(table, "Total Recordable Injury Freq Rate (TRIFR)")) == ["NA", "0.00", "NA", "64.52"]
+    assert month_and_fytd(row(table, "Environmental Incidents")) == ["–", "–", "–", "–"]
+    assert month_and_fytd(row(table, "Property Damage / Loss")) == ["1", "1", "–", "–"]
+    assert month_and_fytd(row(table, "Security Incident / Violence")) == ["–", "1", "–", "1"]
+    assert month_and_fytd(row(table, "Misfire")) == ["1", "1", "–", "–"]
+    assert month_and_fytd(row(table, "NMG Head Count")) == ["2", "NA", "1", "NA"]
+    assert month_and_fytd(row(table, "Total Person Hours Worked")) == ["30,500", "90,500", "3,000", "6,500"]
+
+
+def test_table_has_every_month_of_the_financial_year(data):
+    # Jul, Aug, Sep then FYTD, for Mining then Exploration (Neil, 2026-10-22).
+    events, hours, _ = data
+    table = metrics.build_table(events, hours, sample.PEOPLE, sample.MONTH)
+    assert all(len(r["cells"]) == 8 for r in table)
+    assert row(table, "Lost Time Injury") == ["–", "–", "–", "–", "–", "1", "–", "1"]
+    assert row(table, "Security Incident / Violence") == ["–", "1", "–", "1", "1", "–", "–", "1"]
+    assert row(table, "Lost Time Injury Freq Rate (LTIFR)")[3] == "0.00"
+    assert row(table, "NMG Head Count")[3] == "NA" and row(table, "NMG Head Count")[7] == "NA"
+    assert metrics.fy_columns(sample.MONTH)[0] == ["Jul", "Aug", "Sep", "FYTD"]
+    assert metrics.fy_columns((2026, 7))[0] == ["Jul", "FYTD"]
+
+
+def test_combined_rates_pool_injuries_and_hours(data):
+    events, hours, _ = data
+    trifr, ltifr = metrics.frequency_rates(events, hours, config.COMBINED, sample.MONTH)
+    mining_hours = sum(hours.get((config.MINING, m), 0) for m in metrics.rolling_12(sample.MONTH))
+    exploration_hours = sum(hours.get((config.EXPLORATION, m), 0) for m in metrics.rolling_12(sample.MONTH))
+    # Exploration's one LTI in 12 months over both areas' hours.
+    assert ltifr == pytest.approx(1_000_000 / (mining_hours + exploration_hours))
+    assert trifr == pytest.approx(ltifr)
 
 
 def test_table_bold_rows_and_order(data):
@@ -157,9 +185,9 @@ def test_new_event_type_and_unclassified_injury_get_their_own_rows():
         sample.event(2, "2026-09-03", "CPO - Ozland", "Injury", "", ""),
     ], [], issues)
     table = metrics.build_table(events, {}, [], sample.MONTH)
-    assert row(table, "Fire & <Explosion>") == ["1", "1", "–", "–"]
-    assert row(table, "Unclassified injury") == ["1", "1", "–", "–"]
-    assert row(table, "Total Injuries") == ["1", "1", "–", "–"]
+    assert month_and_fytd(row(table, "Fire & <Explosion>")) == ["1", "1", "–", "–"]
+    assert month_and_fytd(row(table, "Unclassified injury")) == ["1", "1", "–", "–"]
+    assert month_and_fytd(row(table, "Total Injuries")) == ["1", "1", "–", "–"]
 
 
 def test_lost_workdays_with_a_return_date():
@@ -168,15 +196,15 @@ def test_lost_workdays_with_a_return_date():
     events = metrics.normalise_events(
         [ev], [sample.injury(1, returnWorkDate="2026-09-17T00:00:00")], issues)
     table = metrics.build_table(events, {}, [], sample.MONTH)
-    assert row(table, "Lost Workdays") == ["7", "7", "–", "–"]
+    assert month_and_fytd(row(table, "Lost Workdays")) == ["7", "7", "–", "–"]
 
 
 def test_empty_data_renders_dashes_and_na_without_dividing_by_zero():
     table = metrics.build_table([], {}, [], sample.MONTH)
-    assert row(table, "Total Injuries") == ["–", "–", "–", "–"]
-    assert row(table, "Lost Time Injury Freq Rate (LTIFR)") == ["NA", "NA", "NA", "NA"]
-    assert row(table, "Total Person Hours Worked") == ["–", "–", "–", "–"]
-    assert row(table, "NMG Head Count") == ["–", "NA", "–", "NA"]
+    assert month_and_fytd(row(table, "Total Injuries")) == ["–", "–", "–", "–"]
+    assert month_and_fytd(row(table, "Lost Time Injury Freq Rate (LTIFR)")) == ["NA", "NA", "NA", "NA"]
+    assert month_and_fytd(row(table, "Total Person Hours Worked")) == ["–", "–", "–", "–"]
+    assert month_and_fytd(row(table, "NMG Head Count")) == ["–", "NA", "–", "NA"]
 
 
 def test_most_severe_injury_row_wins_when_an_event_has_several():

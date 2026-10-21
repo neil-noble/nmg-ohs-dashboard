@@ -15,7 +15,7 @@ def test_report_keys(report):
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
-                           "charts_source", "open_incidents",
+                           "charts_source", "open_incidents", "table_columns",
                            "ozland_ert", "reporting"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
@@ -41,6 +41,7 @@ def test_trend_has_12_labelled_points(report):
     assert trend["ltifr"][config.EXPLORATION][-2] == pytest.approx(80.0)
     assert trend["ltifr"][config.EXPLORATION][-3] == 0.0
     assert trend["trifr"][config.MINING] == [0.0] * 12
+    assert len(trend["trifr"][config.COMBINED]) == 12 and len(trend["ltifr"][config.COMBINED]) == 12
 
 
 def test_trend_point_with_no_hours_is_none():

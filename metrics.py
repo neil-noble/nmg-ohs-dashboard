@@ -121,9 +121,12 @@ def fmt_rate(r):
 
 
 def frequency_rates(events, hours, bucket, month):
+    """Rolling 12-month TRIFR and LTIFR for one area, or for both when bucket is COMBINED: both
+    areas' injuries over both areas' hours, not an average of the two rates."""
     window = set(rolling_12(month))
-    in_window = _in(events, bucket, window)
-    worked = hours_sum(hours, bucket, window)
+    areas = config.BUCKETS if bucket == config.COMBINED else (bucket,)
+    in_window = [e for b in areas for e in _in(events, b, window)]
+    worked = sum(hours_sum(hours, b, window) for b in areas)
     recordable = sum(1 for e in in_window if e["injury_class"] in config.RECORDABLE)
     lost_time = sum(1 for e in in_window if e["injury_class"] == "LTI")
     return rate(recordable, worked), rate(lost_time, worked)
@@ -164,12 +167,21 @@ def _lost_workdays(events, bucket, months):
     return fmt_count(days)
 
 
+def fy_columns(month):
+    """(headings, month sets): each month of the financial year to `month`, then FYTD (Neil,
+    2026-10-22, for both the Events and the Reports by area tables)."""
+    fy_months = month_range(fy_start(month), month)
+    return ([calendar.month_abbr[m] for _, m in fy_months] + ["FYTD"],
+            [{m} for m in fy_months] + [set(fy_months)])
+
+
 def build_table(events, hours, people, month, issues=None):
-    periods = ({month}, set(month_range(fy_start(month), month)))
+    periods = fy_columns(month)[1]
+    last = len(periods) - 1
 
     def cells(value):
-        """value(bucket, months, is_fytd) for Mining month, Mining FYTD, Exploration month, Exploration FYTD."""
-        return [value(b, months, i == 1) for b in config.BUCKETS for i, months in enumerate(periods)]
+        """value(bucket, months, is_fytd) for each month then FYTD, Mining then Exploration."""
+        return [value(b, months, i == last) for b in config.BUCKETS for i, months in enumerate(periods)]
 
     def counted(row):
         return cells(lambda b, months, _: fmt_count(count(events, b, months, row)))
@@ -196,9 +208,10 @@ def build_table(events, hours, people, month, issues=None):
     for label in list(config.FIXED_EVENT_ROWS) + sorted(rows_present - known):
         table.append(line(label, counted(label)))
 
-    as_at = month_end(month)
+    # Head count at the end of each month; only the reporting month's notes unmapped workgroups.
     table.append(line("NMG Head Count", cells(
-        lambda b, _, fytd: "NA" if fytd else fmt_count(head_count(people, b, as_at, issues)))))
+        lambda b, months, fytd: "NA" if fytd else fmt_count(head_count(
+            people, b, month_end(min(months)), issues if min(months) == month else None)))))
     table.append(line("Total Person Hours Worked", cells(
         lambda b, months, _: fmt_count(round(hours_sum(hours, b, months)))), bold=True))
     return table
@@ -224,10 +237,10 @@ def build_kpis(events, hours, month, today):
 def build_trend(events, hours, month):
     points = rolling_12(month)
     trend = {"labels": [short_label(p) for p in points],
-             "trifr": {b: [] for b in config.BUCKETS},
-             "ltifr": {b: [] for b in config.BUCKETS}}
+             "trifr": {b: [] for b in config.BUCKETS + (config.COMBINED,)},
+             "ltifr": {b: [] for b in config.BUCKETS + (config.COMBINED,)}}
     for point in points:
-        for b in config.BUCKETS:
+        for b in config.BUCKETS + (config.COMBINED,):
             trifr, ltifr = frequency_rates(events, hours, b, point)
             trend["trifr"][b].append(trifr)
             trend["ltifr"][b].append(ltifr)
@@ -427,8 +440,7 @@ def build_reporting(events, checklists, month):
     """Near misses and hazard reports: by month for 12 months, one chart per area (Neil,
     2026-10-22), and a table with every month of the financial year so far, then FYTD."""
     points = rolling_12(month)
-    fy_months = month_range(fy_start(month), month)
-    periods = [{m} for m in fy_months] + [set(fy_months)]
+    columns, periods = fy_columns(month)
     near_misses = [(e["bucket"], e["ym"]) for e in events if e["row"] == config.NEAR_MISS_ROW]
     found = dict(zip(config.REPORTING_SERIES, (near_misses, _hazard_reports(checklists))))
     return {
@@ -437,7 +449,7 @@ def build_reporting(events, checklists, month):
                                    for p in points])
                             for name in config.REPORTING_SERIES]
                    for which in config.BUCKETS},
-        "columns": [calendar.month_abbr[m] for _, m in fy_months] + ["FYTD"],
+        "columns": columns,
         "table": [{"label": name, "bold": False,
                    "cells": [fmt_count(sum(1 for b, ym in found[name] if b == which and ym in months))
                              for which in config.BUCKETS for months in periods]}
@@ -551,6 +563,7 @@ def build_report(raw, today, generated):
         "generated": generated,
         "kpis": build_kpis(events, hours, month, today),
         "table": table,
+        "table_columns": fy_columns(month)[0],
         "trend": build_trend(events, hours, month),
         "event_trend": build_event_trend(events, month),
         "reporting": build_reporting(events, raw.get("checklists", []), month),

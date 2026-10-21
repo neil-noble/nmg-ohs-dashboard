@@ -171,9 +171,11 @@ def _axes(top, width, right):
     return parts, y
 
 
-def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, fmt="{:.2f}", dashed=()):
+def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, fmt="{:.2f}", dashed=(),
+                every=1):
     """series and colours are both keyed by series name; fmt formats the latest-point labels;
-    series named in dashed are drawn with a dashed line."""
+    series named in dashed are drawn with a dashed line; every labels one month in that many,
+    always including the latest."""
     values = [v for line in series.values() for v in line if v is not None]
     parts, y = _axes(nice_max(max(values, default=0)), width, RIGHT)
     span = max(len(labels) - 1, 1)
@@ -182,7 +184,8 @@ def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, f
         return LEFT + (width - LEFT - RIGHT) * i / span
 
     for i, label in enumerate(labels):
-        parts.append(f'<text class="tick" x="{x(i):.1f}" y="{H - 9}" text-anchor="middle">{escape(label)}</text>')
+        if (len(labels) - 1 - i) % every == 0:
+            parts.append(f'<text class="tick" x="{x(i):.1f}" y="{H - 9}" text-anchor="middle">{escape(label)}</text>')
     label_ys = []
     for name, line in series.items():
         colour = colours[name]
@@ -336,42 +339,65 @@ def _matrix(report, rows, first_heading, columns=None):
 
 
 def _table(report):
-    inner = (_matrix(report, report["table"], "Event")
+    inner = (_matrix(report, report["table"], "Event", report["table_columns"])
              + '<p class="note">Frequency rates in the FYTD columns are rolling 12-month rates. '
              "Head count is NMG employees only, at month end.</p>")
-    return _visual(7, "Events", inner, "event-table", sub="month and financial year to date")
+    return _visual(7, "Events", inner, "event-table", sub="each month of the financial year, and year to date")
 
 
 def _trends(report):
-    """TRIFR and LTIFR on one chart (Neil, 2026-10-21): colour is the area, LTIFR is dashed."""
+    """TRIFR and LTIFR 12-month trends for Mining, Exploration and the two combined, side by side
+    (Neil, 2026-10-22). LTIFR is dashed; the colour is the area."""
     trend = report["trend"]
-    series, colours, dashed = {}, {}, []
-    for measure in ("TRIFR", "LTIFR"):
-        for name in config.BUCKETS:
-            key = f"{measure} {name}"
-            series[key] = trend[measure.lower()][name]
-            colours[key] = config.SERIES_COLOURS[name]
-            if measure == "LTIFR":
-                dashed.append(key)
-    note = ('<p class="note">Injuries per one million hours worked, calculated over a rolling '
-            "12 months. TRIFR counts lost time, restricted work and medically treated injuries; "
-            "LTIFR counts lost time injuries only, so it is never above TRIFR. Where an area&rsquo;s "
-            "two lines are equal they overlap.</p>")
-    chart = _line_chart("TRIFR and LTIFR 12 Month Trend", trend["labels"], series, colours,
-                        width=1100, dashed=dashed)
-    return _visual(12, "TRIFR and LTIFR 12 Month Trend", chart + note, "rate-trends",
-                   sub="total recordable and lost time injury frequency rates")
+    charts = ""
+    for area in config.BUCKETS + (config.COMBINED,):
+        colour = config.SERIES_COLOURS.get(area, config.RIVER)
+        series = {measure: trend[measure.lower()][area] for measure in ("TRIFR", "LTIFR")}
+        chart = _line_chart(f"TRIFR and LTIFR, {area}", trend["labels"], series,
+                            dict.fromkeys(series, colour), width=420, dashed=["LTIFR"], every=2)
+        if area == config.COMBINED:
+            chart += ('<p class="note">Injuries per one million hours worked, calculated over a '
+                      "rolling 12 months. TRIFR counts lost time, restricted work and medically "
+                      "treated injuries; LTIFR counts lost time injuries only, so it is never above "
+                      "TRIFR. Combined is both areas&rsquo; injuries over both areas&rsquo; hours. "
+                      "Where the two lines are equal they overlap.</p>")
+        charts += _visual(4, f"TRIFR and LTIFR – {area}", chart, f"rate-trend-{area.lower()}",
+                          sub="12 month trend")
+    return f'<div id="rate-trends" class="group">{charts}</div>'
+
+
+def _grouped_bars(title, labels, series, colours, width=760):
+    """One cluster per month, one bar per series in it, its count as the bar's tooltip."""
+    right = 12
+    top = nice_max(max((v for _, values in series for v in values), default=0))
+    parts, y = _axes(top, width, right)
+    slot = (width - LEFT - right) / max(len(labels), 1)
+    bar = slot * 0.84 / max(len(series), 1)
+    for i, label in enumerate(labels):
+        start = LEFT + slot * i + slot * 0.08
+        for k, (name, values) in enumerate(series):
+            v = values[i]
+            if v:
+                parts.append(f'<rect x="{start + bar * k:.1f}" y="{y(v):.1f}" width="{bar:.1f}" '
+                             f'height="{y(0) - y(v):.1f}" fill="{colours[name]}">'
+                             f"<title>{escape(label)} – {escape(name)}: {v}</title></rect>")
+        parts.append(f'<text class="tick" x="{LEFT + slot * (i + 0.5):.1f}" y="{H - 9}" '
+                     f'text-anchor="middle">{escape(label)}</text>')
+    # Too many bars to read squeezed onto a phone, so it scrolls sideways there instead.
+    svg = (f'<div class="scroll"><svg viewBox="0 0 {width} {H}" style="min-width:600px" role="img" '
+           f'aria-label="{escape(title)}">{"".join(parts)}</svg></div>')
+    return svg + _legend([(name, colours[name]) for name, _ in series])
 
 
 def _event_trend(report):
+    """A bar for each event type in each month (Neil, 2026-10-22), with the numbers underneath."""
     trend = report["event_trend"]
     head = "".join(f"<th>{escape(label)}</th>" for label in trend["labels"])
     rows = "".join(f'<tr><th scope="row">{escape(name)}</th>'
                    + "".join(f"<td>{value or '–'}</td>" for value in values) + "</tr>"
                    for name, values in trend["series"])
     colours = dict(zip((name for name, _ in trend["series"]), config.TREND_COLOURS))
-    inner = (_line_chart("Events by month", trend["labels"], dict(trend["series"]), colours,
-                         width=760, fmt="{}")
+    inner = (_grouped_bars("Events by month", trend["labels"], trend["series"], colours)
              + "<details><summary>Show the numbers</summary><div class=\"scroll\"><table><thead>"
              f"<tr><th>Type</th>{head}</tr></thead><tbody>{rows}</tbody></table></div></details>")
     return _visual(8, "Events by month", inner, "event-trend",

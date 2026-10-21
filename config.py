@@ -6,6 +6,8 @@ NMG_EMPLOYER = "New Murchison Gold Ltd"
 
 MINING, EXPLORATION = "Mining", "Exploration"
 BUCKETS = (MINING, EXPLORATION)
+# Mining and Exploration together, for the combined TRIFR / LTIFR trend (Neil, 2026-10-22).
+COMBINED = "Combined"
 EXCLUDED, UNMAPPED = "excluded", "unmapped"
 
 # (result, workgroup prefixes, exact workgroup names). Decided by Neil 2026-10-11.
