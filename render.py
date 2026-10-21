@@ -516,10 +516,11 @@ def _ozland_ert(report):
     late_start = days[0]["day"] > oz["fy_start"]
     inner = (_ozland_chart(days)
              + _legend([("Obligation met", MET_COLOUR), ("Not met", MISSED_COLOUR)])
-             + f'<div class="cards two"><div><b class="ok">{met_pct:.0f}%</b>'
-             f'<span>Compliant &ndash; {oz["met"]} of {total} days</span></div>'
-             f'<div><b class="alert">{missed_pct:.0f}%</b>'
-             f'<span>Not compliant &ndash; {oz["missed"]} of {total} days</span></div></div>'
+             # The verdict sits with its figure, in its colour (Neil, 2026-10-22).
+             + f'<div class="cards two"><div><b class="ok">{met_pct:.0f}% Compliant</b>'
+             f'<span>{oz["met"]} of {total} days</span></div>'
+             f'<div><b class="alert">{missed_pct:.0f}% Not Compliant</b>'
+             f'<span>{oz["missed"]} of {total} days</span></div></div>'
              f'<p class="note">Ozland must provide {config.OZLAND_ERT_PER_SHIFT} qualified ERT members on '
              f"day shift and {config.OZLAND_ERT_PER_SHIFT} on night shift. Qualified means Competent in all "
              "six ERT competencies (Advanced First Aid, Road Crash Rescue, Fire Team Operations, Open "

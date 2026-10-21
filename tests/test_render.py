@@ -208,8 +208,8 @@ def test_ozland_ert_bars_are_green_or_red_with_percentages(report):
     section = section_of(ozland_page(report), "ozland-ert")
     assert section.count("<rect") == 3
     assert section.count('fill="#2E9E44"><title>') == 1 and section.count('fill="#D94F32"><title>') == 2
-    assert "33%" in section and "1 of 3 days" in section
-    assert "67%" in section and "2 of 3 days" in section
+    assert '<b class="ok">33% Compliant</b>' in section and "1 of 3 days" in section
+    assert '<b class="alert">67% Not Compliant</b>' in section and "2 of 3 days" in section
     assert "10 Oct 2026: 2 qualified on day shift, 2 on night shift - met" in section
     assert "no roster before 8 Oct 2026" in section
 
