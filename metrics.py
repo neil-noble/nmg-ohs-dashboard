@@ -389,17 +389,6 @@ def build_open_incidents(events, people, today, keep=config.OPEN_INCIDENTS_SHOWN
     return {"total": len(listed), "rows": [entry for _, _, entry in listed[:keep]]}
 
 
-def build_ert_shortfalls(ert):
-    """ERT dials below their minimum, read off the ERT dashboard. None when it was not read."""
-    if not ert:
-        return None
-    rows = [{"shift": shift, "competency": name, "held": held, "minimum": minimum,
-             "status": f"Short by {minimum - held}"}
-            for shift, dials in ert["rows"] for name, held, minimum in dials if held < minimum]
-    return {"updated": ert.get("updated", ""), "rows": rows,
-            "dials": sum(len(dials) for _, dials in ert["rows"])}
-
-
 def build_open_workflows(events, checklists, keep=9):
     """Open workflows by type, the way PeopleTray's own chart slices them.
 
@@ -565,8 +554,6 @@ def build_report(raw, today, generated):
         "status": build_status(events, raw["actions"], month, today),
         "open_actions": open_actions,
         "open_incidents": build_open_incidents(raw["events"], raw["people"], today),
-        "ert": build_ert_shortfalls(raw.get("ert_dials")),
-        "ert_error": raw.get("ert_error"),
         "ozland_ert": build_ozland_ert(raw["people"], raw.get("roster", []), raw.get("shifttypes", []),
                                        raw.get("competencies", []), today),
         "open_workflows": open_workflows,

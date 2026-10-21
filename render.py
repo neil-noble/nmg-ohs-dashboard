@@ -95,6 +95,8 @@ svg .cat{font-size:12px;fill:var(--ink)}
 svg .val{font-size:14px;font-weight:700}
 details{margin-top:8px;font-size:12px}
 details summary{cursor:pointer;color:var(--river)}
+.v.ert{padding:0;background:#0e1117;border-color:#083045;overflow:hidden}
+.v.ert iframe{display:block;width:100%;height:4200px;border:0}
 .band{grid-column:1/-1;background:var(--navy);color:#fff;border-radius:4px;padding:9px 14px;
 margin-top:8px;border-left:6px solid var(--pale-gold)}
 .band h2{margin:0;font-size:17px;font-weight:700;letter-spacing:.01em}
@@ -531,26 +533,19 @@ def _ozland_ert(report):
                    sub=f"{start} to {days[-1]['label']}, financial year to date")
 
 
-def _ert_shortfalls(report):
-    ert = report["ert"]
-    if ert is None:
-        inner = ('<p class="note">The NMG CPO ERT dashboard could not be read on this build, so '
-                 "ERT coverage is not shown.</p>")
-        return _visual(12, "Emergency Services non-conformances", inner, "ert-shortfalls")
-    rows = "".join(
-        f'<tr><td>{escape(r["shift"])}</td><td>{escape(r["competency"])}</td>'
-        f'<td>{r["held"]}</td><td>{r["minimum"]}</td><td>{_pill(r["status"], True)}</td></tr>'
-        for r in ert["rows"])
-    inner = ('<div class="scroll"><table class="actions"><thead><tr><th>Shift</th><th>Competency</th>'
-             "<th>ERT on roster</th><th>Minimum</th><th>Status</th></tr></thead>"
-             f"<tbody>{rows}</tbody></table></div>"
-             if rows else '<p class="note">Every ERT competency is at or above its minimum.</p>')
-    when = f' as at {escape(ert["updated"])}' if ert["updated"] else ""
-    inner += ('<p class="note">ERT competency coverage below minimum, from the NMG CPO ERT '
-              f"dashboard{when}: competent ERT members on today&rsquo;s roster against the minimum "
-              "per 24 hours.</p>")
-    return _visual(12, "Emergency Services non-conformances", inner, "ert-shortfalls",
-                   sub=f'{len(ert["rows"])} of {ert["dials"]} below minimum')
+# The frame starts tall enough for the whole ERT page; once it loads, it is resized to its content.
+# Reading the framed page's height needs the same origin, which the two github.io sites share.
+ERT_FIT_SCRIPT = """<script>(function(){var f=document.getElementById("ert-frame");
+function fit(){try{var d=f.contentDocument;if(d&&d.body){f.style.height=d.documentElement.scrollHeight+"px";}}
+catch(e){}}f.addEventListener("load",function(){fit();try{new ResizeObserver(fit).observe(f.contentDocument.body);}
+catch(e){}});window.addEventListener("resize",fit);})();</script>"""
+
+
+def _ert_dashboard():
+    """The NMG CPO ERT dashboard, live, exactly as its own site shows it (Neil, 2026-10-22)."""
+    return (f'<section id="ert-dashboard" class="v ert" style="--span:12">'
+            f'<iframe id="ert-frame" src="{escape(config.ERT_SITE_URL)}" '
+            'title="NMG CPO ERT dashboard"></iframe></section>' + ERT_FIT_SCRIPT)
 
 
 def _open_workflows(report):
@@ -606,10 +601,23 @@ def render(report):
         _sub("lagging", "Lagging indicators", "outcomes: events, injuries and frequency rates"),
         _trends(report), _table(report), side, _event_trend(report), _event_status(report),
         _injuries(report), _open_incidents(report),
-        _band("emergency-response", "Emergency Response", "ERT coverage and contractor obligations"),
-        _ert_shortfalls(report), _ozland_ert(report),
+        _band("emergency-response", "Emergency Response",
+              "The NMG CPO ERT dashboard, live: roster coverage, competencies, training and the "
+              "Ozland obligation"),
+        _ert_dashboard(),
         _footer()))
+    return _page("NMG Health &amp; Safety Performance", _header(report), main)
+
+
+def render_ozland(report):
+    """The Ozland ERT obligation on a page of its own. It left the main page when Emergency
+    Response became the ERT dashboard, but the ERT dashboard draws its Ozland chart from this
+    page (its ozland.py), so it is still built here, where the roster join is done."""
+    return _page("NMG Ozland ERT Obligation", _header(report), _ozland_ert(report))
+
+
+def _page(title, header, main):
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f"<title>NMG Health &amp; Safety Performance</title><style>{CSS}</style></head><body>"
-            f'{_header(report)}<main class="canvas">{main}</main></body></html>')
+            f"<title>{title}</title><style>{CSS}</style></head><body>"
+            f'{header}<main class="canvas">{main}</main></body></html>')

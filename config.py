@@ -113,3 +113,7 @@ OZLAND_EMPLOYER = "ozland"          # matched inside the person's employer, case
 ERT_WORK_ROLE = "ERT Member"
 ERT_QUALIFICATIONS = ("HLTAID014", "PUASAR024", "RIIERR201E", "PUAFIR207", "PUAFIR306", "PUASAR032")
 OZLAND_ERT_PER_SHIFT = 2
+
+# The Emergency Response section is the NMG CPO ERT dashboard itself (Neil, 2026-10-22), shown in a
+# frame. Both sites are on neil-noble.github.io, so this page can size the frame to fit.
+ERT_SITE_URL = "https://neil-noble.github.io/nmg-ert-site/"

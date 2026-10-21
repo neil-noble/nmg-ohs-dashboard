@@ -21,8 +21,9 @@ def page(report):
 def test_is_a_complete_self_contained_document(page):
     assert page.startswith("<!doctype html>")
     assert page.rstrip().endswith("</html>")
-    assert "<script" not in page
-    assert not re.search(r'(src|href)="https?://', page)
+    # The one thing from outside is the ERT dashboard's frame, and the script that sizes it.
+    assert page.count("<script") == 1 and "ert-frame" in render.ERT_FIT_SCRIPT
+    assert re.findall(r'(?:src|href)="(https?://[^"]+)"', page) == [config.ERT_SITE_URL]
     assert "<img" not in page                      # no logo: the Wix page above already carries it
 
 
@@ -55,8 +56,7 @@ def test_kpi_tiles(page):
 
 
 def test_charts_are_inline_svg_with_month_labels(page):
-    assert page.count("<svg") == 8    # TRIFR, LTIFR, event trend, two donuts, workflow pie, action bars,
-                                      # Ozland ERT obligation
+    assert page.count("<svg") == 7    # TRIFR, LTIFR, event trend, two donuts, workflow pie, action bars
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
     assert "NaN" not in page and ">None<" not in page
@@ -193,42 +193,19 @@ def test_no_overdue_ranking_of_actionees(page):
     assert "overdue-history" not in page and "Most overdue actions" not in page
 
 
-ERT = {"updated": "19 Oct 2026, 11:38 AM AWST",
-       "rows": [{"shift": "Day shift", "competency": "HAZMAT", "held": 1, "minimum": 4,
-                 "status": "Short by 3"}], "dials": 18}
+def test_emergency_response_is_the_live_ert_dashboard(page):
+    section = section_of(page, "ert-dashboard")
+    assert f'<iframe id="ert-frame" src="{config.ERT_SITE_URL}"' in section
+    for gone in ("ert-shortfalls", "ozland-ert", "Emergency Services non-conformances"):
+        assert gone not in page
 
 
-def test_open_incidents_show_status_and_contractor(page):
-    section = section_of(page, "open-incidents")
-    assert "Assess the Event" in section and "Acme Haulage" in section
-    assert '<span class="pill late">Overdue 6 days</span>' in section
-    assert "1 open, most overdue first" in section
+def ozland_page(report):
+    return render.render_ozland(report)
 
 
-def test_open_incidents_say_when_only_the_top_are_shown(report):
-    rows = [dict(report["open_incidents"]["rows"][0])] * 15
-    page = render.render(dict(report, open_incidents={"total": 21, "rows": rows}))
-    assert "top 15 of 21 open" in section_of(page, "open-incidents")
-    page = render.render(dict(report, open_incidents={"total": 0, "rows": []}))
-    assert "No open incidents" in page
-
-
-def test_ert_shortfalls_are_red_with_the_shortfall(report):
-    section = section_of(render.render(dict(report, ert=ERT)), "ert-shortfalls")
-    assert "Emergency Services non-conformances" in section
-    assert "HAZMAT" in section and '<span class="pill late">Short by 3</span>' in section
-    assert "1 of 18 below minimum" in section and "19 Oct 2026, 11:38 AM AWST" in section
-
-
-def test_ert_section_when_all_met_or_unread(report):
-    met = render.render(dict(report, ert=dict(ERT, rows=[])))
-    assert "at or above its minimum" in section_of(met, "ert-shortfalls")
-    unread = render.render(dict(report, ert=None))
-    assert "could not be read" in section_of(unread, "ert-shortfalls")
-
-
-def test_ozland_ert_bars_are_green_or_red_with_percentages(page):
-    section = section_of(page, "ozland-ert")
+def test_ozland_ert_bars_are_green_or_red_with_percentages(report):
+    section = section_of(ozland_page(report), "ozland-ert")
     assert section.count("<rect") == 3
     assert section.count('fill="#2E9E44"><title>') == 1 and section.count('fill="#D94F32"><title>') == 2
     assert "33%" in section and "1 of 3 days" in section
@@ -238,7 +215,7 @@ def test_ozland_ert_bars_are_green_or_red_with_percentages(page):
 
 
 def test_ozland_ert_with_no_roster(report):
-    page = render.render(dict(report, ozland_ert=dict(report["ozland_ert"], days=[], met=0, missed=0)))
+    page = ozland_page(dict(report, ozland_ert=dict(report["ozland_ert"], days=[], met=0, missed=0)))
     assert "no roster for this financial year" in section_of(page, "ozland-ert")
 
 
@@ -250,7 +227,7 @@ def test_visuals_sit_under_their_section(page):
     leading = ("reporting-trend", "reporting-table", "status", "sheq-actions", "open-workflows", "open-actions")
     lagging = ("rate-trends", "event-table", "injury-classes", "event-mix", "event-trend",
                "event-status", "injury-analysis", "open-incidents")
-    emergency = ("ert-shortfalls", "ozland-ert")
+    emergency = ("ert-dashboard",)
     assert all(at(v) < at("health-safety") for v in summary)
     assert at("health-safety") < at("leading") < at("lagging") < at("emergency-response")
     assert all(at("leading") < at(v) < at("lagging") for v in leading)
@@ -279,3 +256,15 @@ def test_near_miss_and_hazard_reporting_visuals(page):
     table = section_of(page, "reporting-table")
     assert re.search(r"<th[^>]*>Hazard reports</th><td>2</td><td>3</td><td>–</td><td>1</td>", table)
     assert re.search(r"<th[^>]*>Near misses</th><td>2</td><td>2</td><td>–</td><td>–</td>", table)
+
+
+def test_ozland_page_keeps_what_the_ert_dashboard_reads(report):
+    # The ERT dashboard's ozland.py parses this page: the section, its period, the per-day bar
+    # titles, the requirement line and the "Data as at" timestamp must all stay as they are.
+    page = ozland_page(report)
+    assert page.startswith("<!doctype html>") and "<script" not in page
+    assert re.search(r'<section id="ozland-ert"[^>]*><h2>[^<]*<small>[^<]+</small>', page)
+    assert re.search(r"<title>\d{1,2} \w{3} \d{4}: \d+ qualified on day shift, \d+ on night shift - "
+                     r"(met|not met)</title>", page)
+    assert "required: 2 day + 2 night" in page
+    assert re.search(r"Data as at\s*(?:<[^>]+>\s*)*11 Oct 2026, 18:30 AWST", page)

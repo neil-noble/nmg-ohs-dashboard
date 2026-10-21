@@ -15,7 +15,7 @@ def test_report_keys(report):
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
-                           "charts_source", "open_incidents", "ert", "ert_error",
+                           "charts_source", "open_incidents",
                            "ozland_ert", "reporting"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
@@ -255,17 +255,6 @@ def test_open_incidents_keep_the_most_overdue_and_leave_out_other_sites():
     assert listed["rows"][10]["status"] == "Due today"
     every = metrics.build_open_incidents(events, [], sample.TODAY, keep=50)
     assert every["rows"][-1]["event"] == "30" and every["rows"][-1]["status"] == "No target date"
-
-
-def test_ert_shortfalls_list_only_dials_below_minimum():
-    ert = {"updated": "19 Oct 2026, 11:38 AM AWST",
-           "rows": [("Day shift", [("Advanced First Aid", 4, 2), ("HAZMAT", 1, 4)]),
-                    ("Day and night", [("HAZMAT", 4, 4)])]}
-    assert metrics.build_ert_shortfalls(ert) == {
-        "updated": "19 Oct 2026, 11:38 AM AWST", "dials": 3,
-        "rows": [{"shift": "Day shift", "competency": "HAZMAT", "held": 1, "minimum": 4,
-                  "status": "Short by 3"}]}
-    assert metrics.build_ert_shortfalls(None) is None
 
 
 def test_ozland_ert_obligation_day_by_day(report):
