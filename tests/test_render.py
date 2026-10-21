@@ -240,3 +240,21 @@ def test_ozland_ert_bars_are_green_or_red_with_percentages(page):
 def test_ozland_ert_with_no_roster(report):
     page = render.render(dict(report, ozland_ert=dict(report["ozland_ert"], days=[], met=0, missed=0)))
     assert "no roster for this financial year" in section_of(page, "ozland-ert")
+
+
+def test_visuals_sit_under_their_section(page):
+    def at(ident):
+        return page.index(f'id="{ident}"')
+
+    summary = ("kpis",)
+    leading = ("status", "sheq-actions", "open-workflows", "open-actions")
+    lagging = ("rate-trends", "event-table", "injury-classes", "event-mix", "event-trend",
+               "event-status", "injury-analysis", "open-incidents")
+    emergency = ("ert-shortfalls", "ozland-ert")
+    assert all(at(v) < at("health-safety") for v in summary)
+    assert at("health-safety") < at("leading") < at("lagging") < at("emergency-response")
+    assert all(at("leading") < at(v) < at("lagging") for v in leading)
+    assert all(at("lagging") < at(v) < at("emergency-response") for v in lagging)
+    assert all(at("emergency-response") < at(v) for v in emergency)
+    assert ">Health &amp; Safety<" in page and ">Emergency Response<" in page
+    assert ">Leading indicators<" in page and ">Lagging indicators<" in page

@@ -94,6 +94,15 @@ svg .cat{font-size:12px;fill:var(--ink)}
 svg .val{font-size:14px;font-weight:700}
 details{margin-top:8px;font-size:12px}
 details summary{cursor:pointer;color:var(--river)}
+.band{grid-column:1/-1;background:var(--navy);color:#fff;border-radius:4px;padding:9px 14px;
+margin-top:8px;border-left:6px solid var(--pale-gold)}
+.band h2{margin:0;font-size:17px;font-weight:700;letter-spacing:.01em}
+.band p{margin:2px 0 0;font-size:12px;color:var(--river-tint)}
+.sub{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+border-bottom:2px solid var(--river);padding:4px 2px 3px}
+.sub h3{margin:0;font-size:14px;font-weight:700;color:var(--navy);text-transform:uppercase;
+letter-spacing:.05em}
+.sub p{margin:0;font-size:12px;color:var(--muted)}
 footer{grid-column:1/-1;color:var(--muted);font-size:11px;padding:2px 2px 0}
 footer p{margin:3px 0}
 @media(max-width:1000px){.v,.col{grid-column:1/-1}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -386,7 +395,7 @@ def _actions(report):
              f'<div><b{overdue}>{status["actions_overdue"]}</b><span>Overdue</span></div>'
              f'<div><b>{status["actions_closed_month"]}</b><span>Closed in month</span></div></div>'
              '<p class="note">All corrective actions on site, not split by Mining and Exploration.</p>')
-    return _visual(5, "Corrective actions", cards, "status")
+    return _visual(4, "Corrective actions", cards, "status")
 
 
 def _pill(text, late):
@@ -516,7 +525,7 @@ def _open_workflows(report):
         "left out.")
     inner = (_pie("Open workflows", items, PIE_COLOURS) + f'<p class="note">{note}</p>'
              if items else '<p class="note">No open workflows.</p>')
-    return _visual(6, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
+    return _visual(4, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
 
 
 def _sheq_actions(report):
@@ -525,7 +534,7 @@ def _sheq_actions(report):
         "Open actions for Crown Prince workgroups, as PeopleTray charts them. Overdue is past the "
         "due date, Due is inside the reminder window, Assigned is the rest.")
     inner = _bar_chart("SHEQ actions", report["sheq_actions"], SHEQ_COLOURS) + f'<p class="note">{note}</p>'
-    return _visual(6, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
+    return _visual(4, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
 
 
 def _footer():
@@ -537,14 +546,30 @@ def _footer():
             "treated injuries. Non work related and pre-existing conditions are not counted.</p></footer>")
 
 
+def _band(ident, title, blurb):
+    return f'<div id="{ident}" class="band"><h2>{escape(title)}</h2><p>{escape(blurb)}</p></div>'
+
+
+def _sub(ident, title, blurb):
+    return f'<div id="{ident}" class="sub"><h3>{escape(title)}</h3><p>{escape(blurb)}</p></div>'
+
+
 def render(report):
-    side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}{_actions(report)}</div>'
-    main = "".join((_notice(report), _kpis(report), _trends(report), _table(report), side,
-                    _event_trend(report), _event_status(report), _open_workflows(report),
-                    _sheq_actions(report), _open_incidents(report), _ert_shortfalls(report),
-                    _ozland_ert(report),
-                    _open_actions(report),
-                    _injuries(report), _footer()))
+    # Summary up top, then two sections (Neil, 2026-10-21): Health & Safety, split into leading
+    # and lagging indicators, and Emergency Response.
+    side = f'<div class="col">{_injury_classes(report)}{_event_mix(report)}</div>'
+    main = "".join((
+        _notice(report), _kpis(report),
+        _band("health-safety", "Health & Safety", "Safety performance for Mining and Exploration"),
+        _sub("leading", "Leading indicators",
+             "activity that prevents harm: forms completed and corrective actions closed out"),
+        _actions(report), _sheq_actions(report), _open_workflows(report), _open_actions(report),
+        _sub("lagging", "Lagging indicators", "outcomes: events, injuries and frequency rates"),
+        _trends(report), _table(report), side, _event_trend(report), _event_status(report),
+        _injuries(report), _open_incidents(report),
+        _band("emergency-response", "Emergency Response", "ERT coverage and contractor obligations"),
+        _ert_shortfalls(report), _ozland_ert(report),
+        _footer()))
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             f"<title>NMG Health &amp; Safety Performance</title><style>{CSS}</style></head><body>"
