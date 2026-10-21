@@ -424,15 +424,18 @@ def _hazard_reports(checklists):
 
 
 def build_reporting(events, checklists, month):
-    """Near misses and hazard reports: by month for 12 months, and a month / FYTD table."""
+    """Near misses and hazard reports: by month for 12 months, one chart per area (Neil,
+    2026-10-22), and a month / FYTD table."""
     points = rolling_12(month)
     periods = ({month}, set(month_range(fy_start(month), month)))
     near_misses = [(e["bucket"], e["ym"]) for e in events if e["row"] == config.NEAR_MISS_ROW]
     found = dict(zip(config.REPORTING_SERIES, (near_misses, _hazard_reports(checklists))))
     return {
         "labels": [short_label(p) for p in points],
-        "series": [(name, [sum(1 for _, ym in found[name] if ym == p) for p in points])
-                   for name in config.REPORTING_SERIES],
+        "series": {which: [(name, [sum(1 for b, ym in found[name] if b == which and ym == p)
+                                   for p in points])
+                            for name in config.REPORTING_SERIES]
+                   for which in config.BUCKETS},
         "table": [{"label": name, "bold": False,
                    "cells": [fmt_count(sum(1 for b, ym in found[name] if b == which and ym in months))
                              for which in config.BUCKETS for months in periods]}

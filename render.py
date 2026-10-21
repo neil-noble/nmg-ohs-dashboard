@@ -27,7 +27,7 @@ color:var(--river-tint)}
 .canvas{max-width:1440px;margin:0 auto;padding:10px 14px 18px;display:grid;
 grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
 .group{display:contents}
-.col{grid-column:span 5;display:flex;flex-direction:column;gap:10px;min-width:0}
+.col{grid-column:span var(--span,5);display:flex;flex-direction:column;gap:10px;min-width:0}
 .col .v{flex:1 1 auto}
 .v{grid-column:span var(--span,12);background:#fff;border:1px solid var(--line);border-radius:4px;
 padding:10px 12px 12px;box-shadow:0 1px 2px rgba(0,0,0,.05);min-width:0}
@@ -381,13 +381,17 @@ def _reporting(report, beside=""):
     """Leading: near misses and hazards reported, by month and as a month / FYTD table, with
     beside stacked under the table."""
     reporting = report["reporting"]
-    chart = _line_chart("Near miss and hazard reporting", reporting["labels"], dict(reporting["series"]),
-                        REPORTING_COLOURS, width=640, fmt="{}")
+    # One chart per area (Neil, 2026-10-22), stacked beside the table and corrective actions.
+    charts = "".join(
+        _visual(12, f"Near miss and hazard reporting – {which}",
+                _line_chart(f"Near miss and hazard reporting, {which}", reporting["labels"],
+                            dict(series), REPORTING_COLOURS, width=640, fmt="{}"),
+                f"reporting-trend-{which.lower()}", sub="last 12 months")
+        for which, series in reporting["series"].items())
     note = ('<p class="note">Near misses are safety events of type Near Miss; hazard reports are '
             "Hazard Report Forms submitted in PeopleTray. More reporting is a good sign.</p>")
     return ('<div id="reporting" class="group">'
-            + _visual(7, "Near miss and hazard reporting", chart, "reporting-trend",
-                      sub="last 12 months, Mining and Exploration combined")
+            + f'<div id="reporting-trend" class="col" style="--span:7">{charts}</div>'
             + '<div class="col">'
             + _visual(5, "Reports by area", _matrix(report, reporting["table"], "Report") + note,
                       "reporting-table", sub="month and financial year to date")

@@ -56,7 +56,8 @@ def test_kpi_tiles(page):
 
 
 def test_charts_are_inline_svg_with_month_labels(page):
-    assert page.count("<svg") == 7    # TRIFR, LTIFR, event trend, two donuts, workflow pie, action bars
+    assert page.count("<svg") == 8    # rates, event trend, two donuts, workflow pie, action bars,
+                                      # near miss and hazard reporting for Mining and for Exploration
     assert ">Oct 25<" in page and ">Sep 26<" in page
     assert config.NAVY in page and config.GOLD in page
     assert "NaN" not in page and ">None<" not in page
@@ -94,7 +95,7 @@ def test_empty_report_renders():
     raw = {"events": [], "injuries": [], "hours": [], "actions": [], "people": []}
     page = render.render(metrics.build_report(raw, sample.TODAY, "x"))
     assert "No injuries recorded in the last 12 months" in page
-    assert page.count("<svg") == 6                # no pie when nothing is open
+    assert page.count("<svg") == 7                # no pie when nothing is open
     assert "No open workflows" in page
     assert "NaN" not in page and "nan%" not in page
 
@@ -224,7 +225,7 @@ def test_visuals_sit_under_their_section(page):
         return page.index(f'id="{ident}"')
 
     summary = ("kpis",)
-    leading = ("reporting-trend", "reporting-table", "status", "sheq-actions", "open-workflows", "open-actions")
+    leading = ("reporting-trend", "reporting-trend-mining", "reporting-trend-exploration", "reporting-table", "status", "sheq-actions", "open-workflows", "open-actions")
     lagging = ("rate-trends", "event-table", "injury-classes", "event-mix", "event-trend",
                "event-status", "injury-analysis", "open-incidents")
     emergency = ("ert-dashboard",)
@@ -250,9 +251,11 @@ def test_trifr_and_ltifr_share_one_chart(page):
 
 
 def test_near_miss_and_hazard_reporting_visuals(page):
-    trend = section_of(page, "reporting-trend")
-    assert trend.count("<polyline") == 2
-    assert "Near misses" in trend and "Hazard reports" in trend
+    for which in (config.MINING, config.EXPLORATION):
+        trend = section_of(page, f"reporting-trend-{which.lower()}")
+        assert f"Near miss and hazard reporting – {which}" in trend
+        assert trend.count("<polyline") == 2
+        assert "Near misses" in trend and "Hazard reports" in trend
     table = section_of(page, "reporting-table")
     assert re.search(r"<th[^>]*>Hazard reports</th><td>2</td><td>3</td><td>–</td><td>1</td>", table)
     assert re.search(r"<th[^>]*>Near misses</th><td>2</td><td>2</td><td>–</td><td>–</td>", table)

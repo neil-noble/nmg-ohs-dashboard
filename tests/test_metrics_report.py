@@ -284,10 +284,12 @@ def test_expired_competency_stops_counting():
 def test_near_miss_and_hazard_reporting():
     report = metrics.build_report(sample.RAW, sample.TODAY, "x")["reporting"]
     assert report["labels"][-1] == "Sep 26" and len(report["labels"]) == 12
-    series = dict(report["series"])
-    assert list(series) == ["Near misses", "Hazard reports"]
-    assert series["Hazard reports"][-3:] == [1, 1, 2]     # Jul, Aug, Sep: discarded, Perth, Oct left out
-    assert sum(series["Near misses"]) == 2
+    assert list(report["series"]) == [config.MINING, config.EXPLORATION]
+    mining, exploration = (dict(report["series"][b]) for b in (config.MINING, config.EXPLORATION))
+    assert list(mining) == ["Near misses", "Hazard reports"]
+    assert mining["Hazard reports"][-3:] == [1, 0, 2]     # Jul, Aug, Sep: discarded, Perth, Oct left out
+    assert exploration["Hazard reports"][-3:] == [0, 1, 0]
+    assert sum(mining["Near misses"]) == 2 and sum(exploration["Near misses"]) == 0
     table = {row["label"]: row["cells"] for row in report["table"]}
     assert table["Near misses"] == ["2", "2", "–", "–"]
     assert table["Hazard reports"] == ["2", "3", "–", "1"]
