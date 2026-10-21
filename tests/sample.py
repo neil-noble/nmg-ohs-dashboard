@@ -48,8 +48,13 @@ def action(status, due=None, completed=None, assignee=FAKE_NAME,
             "assigneeWorkgroup": workgroup, "reminderDays": reminder}
 
 
-def checklist(name, status="Open"):
-    return {"checklistName": name, "workflowStatus": status, "person": FAKE_NAME, "user": FAKE_NAME}
+def checklist(name, status="Open", workgroup="CPO - Geology", day="2026-09-10"):
+    return {"checklistName": name, "workflowStatus": status, "person": FAKE_NAME, "user": FAKE_NAME,
+            "workgroup": workgroup, "checklistDateTime": f"{day}T00:00:00"}
+
+
+def hazard(day, workgroup="CPO - Geology", status="Closed (Saved)"):
+    return checklist("Hazard Report Form", status, workgroup, day)
 
 
 EVENTS = [
@@ -116,6 +121,11 @@ CHECKLISTS = [
     checklist("Take 5 "), checklist("Take 5"), checklist("Take 5", "Closed (Saved)"),
     checklist("Prestart - Light Vehicles"), checklist("Prestart - Light Vehicles", "Closed (Discarded)"),
     checklist("Uniform Order"),
+    # Hazard reports: Mining 2 in Sep + 1 in Jul, Exploration 1 in Aug; the rest are not counted.
+    hazard("2026-09-03"), hazard("2026-09-24"), hazard("2026-07-15"),
+    hazard("2026-08-08", "GG - Exploration"),
+    hazard("2026-09-12", status="Closed (Discarded)"), hazard("2026-09-12", "PER - Finance"),
+    hazard("2026-10-02"), hazard("2025-01-20"),
 ]
 
 ALL_SIX = ("HLTAID014 Provide Advanced First Aid", "PUASAR024 Undertake road crash rescue",

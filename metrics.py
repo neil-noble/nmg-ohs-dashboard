@@ -420,6 +420,37 @@ def build_open_workflows(events, checklists, keep=9):
     return ranked
 
 
+def _hazard_reports(checklists):
+    """(bucket, month) for each submitted Hazard Report Form in Mining or Exploration."""
+    out = []
+    for c in checklists:
+        name = " ".join(_text(c.get("checklistName")).split())
+        if name != config.HAZARD_REPORT_FORM or "discarded" in _text(c.get("workflowStatus")).lower():
+            continue
+        which = config.bucket(c.get("workgroup"))
+        day = parse_day(c.get("checklistDateTime")) or parse_day(c.get("submitedDateTime"))
+        if which in config.BUCKETS and day:
+            out.append((which, (day.year, day.month)))
+    return out
+
+
+def build_reporting(events, checklists, month):
+    """Near misses and hazard reports: by month for 12 months, and a month / FYTD table."""
+    points = rolling_12(month)
+    periods = ({month}, set(month_range(fy_start(month), month)))
+    near_misses = [(e["bucket"], e["ym"]) for e in events if e["row"] == config.NEAR_MISS_ROW]
+    found = dict(zip(config.REPORTING_SERIES, (near_misses, _hazard_reports(checklists))))
+    return {
+        "labels": [short_label(p) for p in points],
+        "series": [(name, [sum(1 for _, ym in found[name] if ym == p) for p in points])
+                   for name in config.REPORTING_SERIES],
+        "table": [{"label": name, "bold": False,
+                   "cells": [fmt_count(sum(1 for b, ym in found[name] if b == which and ym in months))
+                             for which in config.BUCKETS for months in periods]}
+                  for name in config.REPORTING_SERIES],
+    }
+
+
 def build_sheq_actions(actions, today):
     """PeopleTray's "SHEQ Actions" chart, reproduced from the actions feed.
 
@@ -528,6 +559,7 @@ def build_report(raw, today, generated):
         "table": table,
         "trend": build_trend(events, hours, month),
         "event_trend": build_event_trend(events, month),
+        "reporting": build_reporting(events, raw.get("checklists", []), month),
         "injury_analysis": build_injury_analysis(events, month),
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),

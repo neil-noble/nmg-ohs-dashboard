@@ -92,6 +92,10 @@ SAFETY_EVENTS_WORKFLOW = "Safety Events"
 # the Exploration Daily Prestart, which Neil asked to have removed (2026-10-12).
 WORKFLOWS_NOT_CHARTED = ("Uniform Order", "Medical Declaration Form", "Exploration Daily Prestart")
 
+# Leading indicators (Neil, 2026-10-21): near misses are events, hazards are this PeopleTray form.
+HAZARD_REPORT_FORM = "Hazard Report Form"
+REPORTING_SERIES = ("Near misses", "Hazard reports")
+
 NAVY, RIVER, GOLD, PALE_GOLD = "#083045", "#55848A", "#927128", "#B19045"
 SAND, COOL_GREY, BLACK = "#F1DCAA", "#DBDBD3", "#333334"
 SERIES_COLOURS = {MINING: NAVY, EXPLORATION: GOLD}

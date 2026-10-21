@@ -128,7 +128,8 @@ def test_sample_data_uses_the_real_field_names():
 def test_action_fields_for_the_outstanding_list_are_required():
     assert {"assignee", "requiredAction", "createdDate", "reminderDays",
             "assigneeWorkgroup"} <= set(fetch.REQUIRED_KEYS["actions"])
-    assert set(fetch.REQUIRED_KEYS["checklists"]) == {"checklistName", "workflowStatus"}
+    assert set(fetch.REQUIRED_KEYS["checklists"]) == {"checklistName", "workflowStatus",
+                                                         "workgroup", "checklistDateTime"}
 
 
 def test_paged_competency_feed_is_followed_to_the_last_page():

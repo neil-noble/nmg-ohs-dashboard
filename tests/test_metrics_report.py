@@ -16,7 +16,7 @@ def test_report_keys(report):
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
                            "charts_source", "open_incidents", "ert", "ert_error",
-                           "ozland_ert"}
+                           "ozland_ert", "reporting"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
@@ -290,3 +290,15 @@ def test_expired_competency_stops_counting():
     assert [d["day_shift"] for d in oz["days"]] == [1, 0]
     empty = metrics.build_ozland_ert([], [], [], [], sample.TODAY)
     assert empty["days"] == [] and empty["met"] == 0
+
+
+def test_near_miss_and_hazard_reporting():
+    report = metrics.build_report(sample.RAW, sample.TODAY, "x")["reporting"]
+    assert report["labels"][-1] == "Sep 26" and len(report["labels"]) == 12
+    series = dict(report["series"])
+    assert list(series) == ["Near misses", "Hazard reports"]
+    assert series["Hazard reports"][-3:] == [1, 1, 2]     # Jul, Aug, Sep: discarded, Perth, Oct left out
+    assert sum(series["Near misses"]) == 2
+    table = {row["label"]: row["cells"] for row in report["table"]}
+    assert table["Near misses"] == ["2", "2", "–", "–"]
+    assert table["Hazard reports"] == ["2", "3", "–", "1"]

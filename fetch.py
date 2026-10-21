@@ -29,7 +29,7 @@ REQUIRED_KEYS = {
     "hours": ("groupName", "year", "month", "exposureHours"),
     "actions": ("actionStatus", "dueDate", "completedDate", "assignee", "requiredAction",
                 "createdDate", "reminderDays", "assigneeWorkgroup", "assigneeId"),
-    "checklists": ("checklistName", "workflowStatus"),
+    "checklists": ("checklistName", "workflowStatus", "workgroup", "checklistDateTime"),
     "people": ("id", "employeeId", "firstName", "lastName", "workGroup", "workRoles", "employer",
                "emplpyeeType", "dateCommenced", "dateCeased"),
     "roster": ("personId", "rosterDate", "shiftTypeId"),

@@ -65,6 +65,7 @@ svg .donut-cap{font-size:2.6px;fill:var(--muted)}
 .legend{display:flex;gap:4px 14px;justify-content:center;flex-wrap:wrap;font-size:11.5px;margin-top:6px;
 color:var(--muted)}
 .legend span{display:flex;align-items:center;gap:5px}
+.dash{display:inline-block;width:18px;border-top:2.5px dashed;flex:none}
 .donut{display:flex;align-items:center;gap:12px}
 .donut svg{flex:0 0 46%;max-width:190px}
 .donut ul{list-style:none;margin:0;padding:0;flex:1;min-width:0;font-size:12px}
@@ -117,6 +118,8 @@ RED = "#A4262C"
 OPEN_CLOSED_COLOURS = (RED, config.RIVER)
 SHEQ_COLOURS = ("#B5B5B0", "#2E9E44", "#D94F32")        # assigned, due, overdue - as PeopleTray
 MET_COLOUR, MISSED_COLOUR = "#2E9E44", "#D94F32"
+REPORTING_COLOURS = dict(zip(config.REPORTING_SERIES, (config.RIVER, MET_COLOUR)))
+RATE_DASH = "6 4"                   # LTIFR is drawn dashed on the combined rate chart
 PIE_COLOURS = (config.RIVER, config.GOLD, config.NAVY, "#D8C8A2", "#8498A2", config.PALE_GOLD,
                "#AAC2C5", "#99999A", config.SAND, config.BLACK, "#C9B894", "#3D6B70", "#5B4718",
                "#2F5F7A")
@@ -143,10 +146,14 @@ def _visual(span, title, body, ident=None, classes="", sub=""):
             f"<h2>{escape(title)}{small}</h2>{body}</section>")
 
 
-def _legend(items):
+def _legend(items, dashed=()):
+    def swatch(name, colour):
+        if name in dashed:
+            return f'<i class="dash" style="border-color:{colour}"></i>'
+        return f'<i class="dot" style="background:{colour}"></i>'
+
     return '<div class="legend">' + "".join(
-        f'<span><i class="dot" style="background:{colour}"></i>{escape(name)}</span>'
-        for name, colour in items) + "</div>"
+        f'<span>{swatch(name, colour)}{escape(name)}</span>' for name, colour in items) + "</div>"
 
 
 def _axes(top, width, right):
@@ -161,8 +168,9 @@ def _axes(top, width, right):
     return parts, y
 
 
-def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, fmt="{:.2f}"):
-    """series and colours are both keyed by series name; fmt formats the latest-point labels."""
+def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, fmt="{:.2f}", dashed=()):
+    """series and colours are both keyed by series name; fmt formats the latest-point labels;
+    series named in dashed are drawn with a dashed line."""
     values = [v for line in series.values() for v in line if v is not None]
     parts, y = _axes(nice_max(max(values, default=0)), width, RIGHT)
     span = max(len(labels) - 1, 1)
@@ -175,12 +183,13 @@ def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, f
     label_ys = []
     for name, line in series.items():
         colour = colours[name]
+        dash = f' stroke-dasharray="{RATE_DASH}"' if name in dashed else ""
         run = []
         for i, v in enumerate(list(line) + [None]):       # the trailing None flushes the last run
             if v is None:
                 if len(run) > 1:
                     parts.append(f'<polyline fill="none" stroke="{colour}" stroke-width="2.5" '
-                                 f'stroke-linejoin="round" points="{" ".join(run)}"/>')
+                                 f'stroke-linejoin="round"{dash} points="{" ".join(run)}"/>')
                 run = []
             else:
                 run.append(f"{x(i):.1f},{y(v):.1f}")
@@ -194,7 +203,7 @@ def _line_chart(title, labels, series, colours=config.SERIES_COLOURS, width=W, f
             parts.append(f'<text class="dlabel" x="{x(len(line) - 1) + 7:.1f}" y="{at:.1f}" '
                          f'fill="{colour}">{fmt.format(line[-1])}</text>')
     svg = f'<svg viewBox="0 0 {width} {H}" role="img" aria-label="{escape(title)}">{"".join(parts)}</svg>'
-    return svg + _legend([(name, colours[name]) for name in series])
+    return svg + _legend([(name, colours[name]) for name in series], dashed)
 
 
 def _donut(title, items, colours, caption):
@@ -307,7 +316,8 @@ def _kpis(report):
     return f'<div id="kpis" class="kpis">{"".join(cards)}</div>'
 
 
-def _table(report):
+def _matrix(report, rows, first_heading):
+    """Rows of Mining month, Mining FYTD, Exploration month, Exploration FYTD cells."""
     month = escape(report["month_label"].split(" ")[0])
     heads = "".join(f'<th colspan="2" style="background:{config.SERIES_COLOURS[name]}">{escape(name)}</th>'
                     for name in config.BUCKETS)
@@ -316,26 +326,37 @@ def _table(report):
         ('<tr class="bold">' if row["bold"] else "<tr>")
         + f'<th scope="row">{escape(row["label"])}</th>'
         + "".join(f"<td>{escape(cell)}</td>" for cell in row["cells"]) + "</tr>"
-        for row in report["table"])
-    inner = (f'<div class="scroll"><table class="matrix"><thead><tr><th></th>{heads}</tr>'
-             f"<tr><th>Event</th>{subs}</tr></thead><tbody>{body}</tbody></table></div>"
-             '<p class="note">Frequency rates in the FYTD columns are rolling 12-month rates. '
+        for row in rows)
+    return (f'<div class="scroll"><table class="matrix"><thead><tr><th></th>{heads}</tr>'
+            f"<tr><th>{escape(first_heading)}</th>{subs}</tr></thead><tbody>{body}</tbody></table></div>")
+
+
+def _table(report):
+    inner = (_matrix(report, report["table"], "Event")
+             + '<p class="note">Frequency rates in the FYTD columns are rolling 12-month rates. '
              "Head count is NMG employees only, at month end.</p>")
     return _visual(7, "Events", inner, "event-table", sub="month and financial year to date")
 
 
 def _trends(report):
+    """TRIFR and LTIFR on one chart (Neil, 2026-10-21): colour is the area, LTIFR is dashed."""
     trend = report["trend"]
+    series, colours, dashed = {}, {}, []
+    for measure in ("TRIFR", "LTIFR"):
+        for name in config.BUCKETS:
+            key = f"{measure} {name}"
+            series[key] = trend[measure.lower()][name]
+            colours[key] = config.SERIES_COLOURS[name]
+            if measure == "LTIFR":
+                dashed.append(key)
     note = ('<p class="note">Injuries per one million hours worked, calculated over a rolling '
-            "12 months.</p>")
-    return ('<div id="rate-trends" class="group">'
-            + _visual(6, "TRIFR 12 Month Trend",
-                      _line_chart("TRIFR 12 Month Trend", trend["labels"], trend["trifr"]) + note,
-                      sub="total recordable injury frequency rate")
-            + _visual(6, "LTIFR 12 Month Trend",
-                      _line_chart("LTIFR 12 Month Trend", trend["labels"], trend["ltifr"]) + note,
-                      sub="lost time injury frequency rate")
-            + "</div>")
+            "12 months. TRIFR counts lost time, restricted work and medically treated injuries; "
+            "LTIFR counts lost time injuries only, so it is never above TRIFR. Where an area&rsquo;s "
+            "two lines are equal they overlap.</p>")
+    chart = _line_chart("TRIFR and LTIFR 12 Month Trend", trend["labels"], series, colours,
+                        width=1100, dashed=dashed)
+    return _visual(12, "TRIFR and LTIFR 12 Month Trend", chart + note, "rate-trends",
+                   sub="total recordable and lost time injury frequency rates")
 
 
 def _event_trend(report):
@@ -351,6 +372,23 @@ def _event_trend(report):
              f"<tr><th>Type</th>{head}</tr></thead><tbody>{rows}</tbody></table></div></details>")
     return _visual(8, "Events by month", inner, "event-trend",
                    sub="last 12 months, Mining and Exploration combined")
+
+
+def _reporting(report, beside=""):
+    """Leading: near misses and hazards reported, by month and as a month / FYTD table, with
+    beside stacked under the table."""
+    reporting = report["reporting"]
+    chart = _line_chart("Near miss and hazard reporting", reporting["labels"], dict(reporting["series"]),
+                        REPORTING_COLOURS, width=640, fmt="{}")
+    note = ('<p class="note">Near misses are safety events of type Near Miss; hazard reports are '
+            "Hazard Report Forms submitted in PeopleTray. More reporting is a good sign.</p>")
+    return ('<div id="reporting" class="group">'
+            + _visual(7, "Near miss and hazard reporting", chart, "reporting-trend",
+                      sub="last 12 months, Mining and Exploration combined")
+            + '<div class="col">'
+            + _visual(5, "Reports by area", _matrix(report, reporting["table"], "Report") + note,
+                      "reporting-table", sub="month and financial year to date")
+            + beside + "</div></div>")
 
 
 def _event_mix(report):
@@ -395,7 +433,7 @@ def _actions(report):
              f'<div><b{overdue}>{status["actions_overdue"]}</b><span>Overdue</span></div>'
              f'<div><b>{status["actions_closed_month"]}</b><span>Closed in month</span></div></div>'
              '<p class="note">All corrective actions on site, not split by Mining and Exploration.</p>')
-    return _visual(4, "Corrective actions", cards, "status")
+    return _visual(5, "Corrective actions", cards, "status")
 
 
 def _pill(text, late):
@@ -525,7 +563,7 @@ def _open_workflows(report):
         "left out.")
     inner = (_pie("Open workflows", items, PIE_COLOURS) + f'<p class="note">{note}</p>'
              if items else '<p class="note">No open workflows.</p>')
-    return _visual(4, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
+    return _visual(6, "Open workflows", inner, "open-workflows", sub=f"{total} open, by workflow type")
 
 
 def _sheq_actions(report):
@@ -534,7 +572,7 @@ def _sheq_actions(report):
         "Open actions for Crown Prince workgroups, as PeopleTray charts them. Overdue is past the "
         "due date, Due is inside the reminder window, Assigned is the rest.")
     inner = _bar_chart("SHEQ actions", report["sheq_actions"], SHEQ_COLOURS) + f'<p class="note">{note}</p>'
-    return _visual(4, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
+    return _visual(6, "SHEQ actions", inner, "sheq-actions", sub="assigned, due and overdue")
 
 
 def _footer():
@@ -562,8 +600,9 @@ def render(report):
         _notice(report), _kpis(report),
         _band("health-safety", "Health & Safety", "Safety performance for Mining and Exploration"),
         _sub("leading", "Leading indicators",
-             "activity that prevents harm: forms completed and corrective actions closed out"),
-        _actions(report), _sheq_actions(report), _open_workflows(report), _open_actions(report),
+             "activity that prevents harm: hazards and near misses reported, forms completed, "
+             "corrective actions closed out"),
+        _reporting(report, _actions(report)), _sheq_actions(report), _open_workflows(report), _open_actions(report),
         _sub("lagging", "Lagging indicators", "outcomes: events, injuries and frequency rates"),
         _trends(report), _table(report), side, _event_trend(report), _event_status(report),
         _injuries(report), _open_incidents(report),

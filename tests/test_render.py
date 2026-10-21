@@ -247,7 +247,7 @@ def test_visuals_sit_under_their_section(page):
         return page.index(f'id="{ident}"')
 
     summary = ("kpis",)
-    leading = ("status", "sheq-actions", "open-workflows", "open-actions")
+    leading = ("reporting-trend", "reporting-table", "status", "sheq-actions", "open-workflows", "open-actions")
     lagging = ("rate-trends", "event-table", "injury-classes", "event-mix", "event-trend",
                "event-status", "injury-analysis", "open-incidents")
     emergency = ("ert-shortfalls", "ozland-ert")
@@ -258,3 +258,24 @@ def test_visuals_sit_under_their_section(page):
     assert all(at("emergency-response") < at(v) for v in emergency)
     assert ">Health &amp; Safety<" in page and ">Emergency Response<" in page
     assert ">Leading indicators<" in page and ">Lagging indicators<" in page
+
+
+def test_trifr_and_ltifr_share_one_chart(page):
+    section = section_of(page, "rate-trends")
+    assert "TRIFR and LTIFR 12 Month Trend" in section
+    assert section.count("<svg") == 1
+    assert section.count("<polyline") == 4                   # TRIFR and LTIFR, Mining and Exploration
+    assert section.count(f'stroke-dasharray="{render.RATE_DASH}"') == 2      # LTIFR lines are dashed
+    assert section.count('class="dash"') == 2                # and so are their legend swatches
+    for name in ("TRIFR Mining", "TRIFR Exploration", "LTIFR Mining", "LTIFR Exploration"):
+        assert name in section
+    assert "TRIFR 12 Month Trend<" not in page and "LTIFR 12 Month Trend<" not in page
+
+
+def test_near_miss_and_hazard_reporting_visuals(page):
+    trend = section_of(page, "reporting-trend")
+    assert trend.count("<polyline") == 2
+    assert "Near misses" in trend and "Hazard reports" in trend
+    table = section_of(page, "reporting-table")
+    assert re.search(r"<th[^>]*>Hazard reports</th><td>2</td><td>3</td><td>–</td><td>1</td>", table)
+    assert re.search(r"<th[^>]*>Near misses</th><td>2</td><td>2</td><td>–</td><td>–</td>", table)
