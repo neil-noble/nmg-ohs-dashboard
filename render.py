@@ -11,7 +11,7 @@ CSS = """
 --sand-tint:#F8EED5;--grey:#DBDBD3;--grey-tint:#EDEDE9;--river-tint:#AAC2C5;--ink:#252423;
 --muted:#605E5C;--line:#E1DFDD;--canvas:#F3F2F1}
 *{box-sizing:border-box}
-body{margin:0;background:var(--canvas);color:var(--ink);
+body{margin:0;background:#fff;color:var(--ink);
 font-family:"Proxima Nova",Aptos,"Segoe UI",system-ui,sans-serif;font-size:13px;line-height:1.4}
 header{background:var(--navy);color:#fff;border-bottom:3px solid var(--pale-gold)}
 header .bar{max-width:1440px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;
@@ -95,7 +95,7 @@ svg .cat{font-size:12px;fill:var(--ink)}
 svg .val{font-size:14px;font-weight:700}
 details{margin-top:8px;font-size:12px}
 details summary{cursor:pointer;color:var(--river)}
-.v.ert{padding:0;background:#0e1117;border-color:#083045;overflow:hidden}
+.v.ert{padding:0;background:#fff;overflow:hidden}
 .v.ert iframe{display:block;width:100%;height:4200px;border:0}
 .band{grid-column:1/-1;background:var(--navy);color:#fff;border-radius:4px;padding:9px 14px;
 margin-top:8px;border-left:6px solid var(--pale-gold)}
