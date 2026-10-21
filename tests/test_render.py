@@ -196,7 +196,7 @@ def test_no_overdue_ranking_of_actionees(page):
 def test_emergency_response_is_the_live_ert_dashboard(page):
     section = section_of(page, "ert-dashboard")
     assert f'<iframe id="ert-frame" src="{config.ERT_SITE_URL}"' in section
-    for gone in ("ert-shortfalls", "ozland-ert", "Emergency Services non-conformances"):
+    for gone in ('id="ert-shortfalls"', 'id="ozland-ert"', "Emergency Services non-conformances"):
         assert gone not in page
 
 

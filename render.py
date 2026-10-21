@@ -84,6 +84,7 @@ color:var(--muted)}
 .cards b.alert{color:#A4262C}
 .cards b.ok{color:#2E9E44}
 .cards.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px}
+#ozland-ert .cards b{font-size:13px}      /* the size of the section heading (Neil, 2026-10-22) */
 .cards span{font-size:11px;color:var(--muted)}
 .actions th,.actions td{text-align:left;vertical-align:top}
 .actions td:nth-child(n+2){white-space:nowrap}
