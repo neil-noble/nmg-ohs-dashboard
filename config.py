@@ -89,8 +89,11 @@ def event_row(event_type):
 # PeopleTray's own "Open Workflows" chart names open safety events like this.
 SAFETY_EVENTS_WORKFLOW = "Safety Events"
 # Left off the Open workflows pie: two HR forms PeopleTray's chart does not show either, and
-# the Exploration Daily Prestart, which Neil asked to have removed (2026-10-12).
-WORKFLOWS_NOT_CHARTED = ("Uniform Order", "Medical Declaration Form", "Exploration Daily Prestart")
+# the Exploration Daily Prestart, which Neil asked to have removed (2026-10-12), and the light
+# vehicle prestart (2026-10-22) - "Prestart - Light Vehicles" in the API, "Light Vehicle
+# Prestarts" on PeopleTray's own chart.
+WORKFLOWS_NOT_CHARTED = ("Uniform Order", "Medical Declaration Form", "Exploration Daily Prestart",
+                         "Prestart - Light Vehicles", "Light Vehicle Prestarts")
 
 # Leading indicators (Neil, 2026-10-21): near misses are events, hazards are this PeopleTray form.
 HAZARD_REPORT_FORM = "Hazard Report Form"

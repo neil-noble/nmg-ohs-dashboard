@@ -134,8 +134,8 @@ def test_open_action_edge_cases():
 
 def test_open_workflows_by_workflow_type(report):
     # Open checklists by name plus open safety events; HR forms PeopleTray leaves off are dropped.
-    assert report["open_workflows"] == [("Take 5", 2), ("Prestart - Light Vehicles", 1),
-                                        ("Safety Events", 1)]
+    # Light vehicle prestarts are left off too (Neil, 2026-10-22).
+    assert report["open_workflows"] == [("Take 5", 2), ("Safety Events", 1)]
 
 
 def test_open_workflows_count_every_open_event_whatever_its_date():
@@ -194,8 +194,7 @@ def test_web_charts_replace_the_api_versions_of_both_charts():
     report = metrics.build_report(dict(sample.RAW, web_charts=WEB), sample.TODAY, "x")
     assert report["charts_source"] == "web"
     assert report["sheq_actions"] == [("Assigned", 5), ("Due", 1), ("Overdue", 3)]
-    assert report["open_workflows"] == [("Light Vehicle Prestarts", 107), ("Take 5", 18),
-                                        ("Area Inspection", 7), ("CCV - Explosives", 1)]
+    assert report["open_workflows"] == [("Take 5", 18), ("Area Inspection", 7), ("CCV - Explosives", 1)]
 
 
 def test_a_failed_web_read_falls_back_to_the_api_and_says_so():

@@ -127,7 +127,7 @@ PIE_COLOURS = (config.RIVER, config.GOLD, config.NAVY, "#D8C8A2", "#8498A2", con
                "#AAC2C5", "#99999A", config.SAND, config.BLACK, "#C9B894", "#3D6B70", "#5B4718",
                "#2F5F7A")
 WEB_NOTE = "As shown on PeopleTray&rsquo;s SHEQ home page."
-WEB_PIE_NOTE = WEB_NOTE + " Exploration Daily Prestarts are left out."
+WEB_PIE_NOTE = WEB_NOTE + " Exploration Daily Prestarts and Light Vehicle Prestarts are left out."
 FALLBACK_NOTE = ("PeopleTray sign-in failed at this build, so these are the API figures and may "
                  "differ from PeopleTray&rsquo;s own chart.")
 
@@ -561,7 +561,7 @@ def _open_workflows(report):
     note = {"web": WEB_PIE_NOTE, "api_fallback": FALLBACK_NOTE}.get(
         report["charts_source"],
         "Submitted forms and safety events whose workflow is still open. PeopleTray&rsquo;s own "
-        "chart also counts forms issued but not yet submitted. Exploration Daily Prestarts are "
+        "chart also counts forms issued but not yet submitted. Exploration Daily Prestarts and Light Vehicle Prestarts are "
         "left out.")
     inner = (_pie("Open workflows", items, PIE_COLOURS) + f'<p class="note">{note}</p>'
              if items else '<p class="note">No open workflows.</p>')
