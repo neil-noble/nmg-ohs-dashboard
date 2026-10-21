@@ -257,8 +257,10 @@ def test_near_miss_and_hazard_reporting_visuals(page):
         assert trend.count("<polyline") == 2
         assert "Near misses" in trend and "Hazard reports" in trend
     table = section_of(page, "reporting-table")
-    assert re.search(r"<th[^>]*>Hazard reports</th><td>2</td><td>3</td><td>–</td><td>1</td>", table)
-    assert re.search(r"<th[^>]*>Near misses</th><td>2</td><td>2</td><td>–</td><td>–</td>", table)
+    assert re.search(r'colspan="4"[^>]*>Mining<', table) and re.search(r'colspan="4"[^>]*>Exploration<', table)
+    assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>FYTD</th>") == 2
+    assert ("<th scope=\"row\">Hazard reports</th><td>1</td><td>–</td><td>2</td><td>3</td>"
+            "<td>–</td><td>1</td><td>–</td><td>1</td>") in table
 
 
 def test_ozland_page_keeps_what_the_ert_dashboard_reads(report):

@@ -291,5 +291,6 @@ def test_near_miss_and_hazard_reporting():
     assert exploration["Hazard reports"][-3:] == [0, 1, 0]
     assert sum(mining["Near misses"]) == 2 and sum(exploration["Near misses"]) == 0
     table = {row["label"]: row["cells"] for row in report["table"]}
-    assert table["Near misses"] == ["2", "2", "–", "–"]
-    assert table["Hazard reports"] == ["2", "3", "–", "1"]
+    assert report["columns"] == ["Jul", "Aug", "Sep", "FYTD"]       # every month from 1 July, then FYTD
+    assert table["Near misses"] == ["–", "–", "2", "2", "–", "–", "–", "–"]
+    assert table["Hazard reports"] == ["1", "–", "2", "3", "–", "1", "–", "1"]

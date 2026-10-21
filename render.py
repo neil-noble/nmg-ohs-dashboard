@@ -319,12 +319,13 @@ def _kpis(report):
     return f'<div id="kpis" class="kpis">{"".join(cards)}</div>'
 
 
-def _matrix(report, rows, first_heading):
-    """Rows of Mining month, Mining FYTD, Exploration month, Exploration FYTD cells."""
-    month = escape(report["month_label"].split(" ")[0])
-    heads = "".join(f'<th colspan="2" style="background:{config.SERIES_COLOURS[name]}">{escape(name)}</th>'
-                    for name in config.BUCKETS)
-    subs = "".join(f"<th>{month}</th><th>FYTD</th>" for _ in config.BUCKETS)
+def _matrix(report, rows, first_heading, columns=None):
+    """Rows of cells, the columns under Mining then the same under Exploration: by default the
+    reporting month and FYTD."""
+    columns = columns or [report["month_label"].split(" ")[0], "FYTD"]
+    heads = "".join(f'<th colspan="{len(columns)}" style="background:{config.SERIES_COLOURS[name]}">'
+                    f"{escape(name)}</th>" for name in config.BUCKETS)
+    subs = "".join(f"<th>{escape(column)}</th>" for _ in config.BUCKETS for column in columns)
     body = "".join(
         ('<tr class="bold">' if row["bold"] else "<tr>")
         + f'<th scope="row">{escape(row["label"])}</th>'
@@ -393,8 +394,8 @@ def _reporting(report, beside=""):
     return ('<div id="reporting" class="group">'
             + f'<div id="reporting-trend" class="col" style="--span:7">{charts}</div>'
             + '<div class="col">'
-            + _visual(5, "Reports by area", _matrix(report, reporting["table"], "Report") + note,
-                      "reporting-table", sub="month and financial year to date")
+            + _visual(5, "Reports by area", _matrix(report, reporting["table"], "Report", reporting["columns"]) + note,
+                      "reporting-table", sub="each month of the financial year, and year to date")
             + beside + "</div></div>")
 
 
