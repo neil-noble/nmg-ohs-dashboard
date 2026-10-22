@@ -629,6 +629,14 @@ catch(e){}}f.addEventListener("load",function(){fit();try{new ResizeObserver(fit
 catch(e){}});window.addEventListener("resize",fit);})();</script>"""
 
 
+# Reload every 5 minutes while the page is open, so a viewer sees each new build (Neil,
+# 2026-10-22); the framed ERT dashboard reloads with it. A hidden tab waits and reloads when it
+# is looked at again.
+RELOAD_SCRIPT = """<script>(function(){var start=Date.now();function check(){if(!document.hidden&&
+Date.now()-start>=300000)location.reload();}setInterval(check,30000);
+document.addEventListener("visibilitychange",check);})();</script>"""
+
+
 def _ert_dashboard():
     """The NMG CPO ERT dashboard, live, exactly as its own site shows it (Neil, 2026-10-22)."""
     return (f'<section id="ert-dashboard" class="v ert" style="--span:12">'
@@ -693,7 +701,7 @@ def render(report):
               "The NMG CPO ERT dashboard, live: roster coverage, competencies, training and the "
               "Ozland obligation"),
         _ert_dashboard(),
-        _footer()))
+        _footer(), RELOAD_SCRIPT))
     return _page("NMG Health &amp; Safety Performance", _header(report), main)
 
 

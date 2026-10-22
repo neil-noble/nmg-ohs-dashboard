@@ -21,8 +21,10 @@ def page(report):
 def test_is_a_complete_self_contained_document(page):
     assert page.startswith("<!doctype html>")
     assert page.rstrip().endswith("</html>")
-    # The one thing from outside is the ERT dashboard's frame, and the script that sizes it.
-    assert page.count("<script") == 1 and "ert-frame" in render.ERT_FIT_SCRIPT
+    # The one thing from outside is the ERT dashboard's frame. Two scripts: one sizes that
+    # frame, one reloads the page every 5 minutes.
+    assert page.count("<script") == 2 and "ert-frame" in render.ERT_FIT_SCRIPT
+    assert render.RELOAD_SCRIPT in page and "300000" in render.RELOAD_SCRIPT
     assert re.findall(r'(?:src|href)="(https?://[^"]+)"', page) == [config.ERT_SITE_URL]
     assert "<img" not in page                      # no logo: the Wix page above already carries it
 
