@@ -299,10 +299,10 @@ def test_close_out_pies_for_nmg_and_ozland():
     page = render.render(report)
     nmg = section_of(page, "close-out-nmg")
     assert "Incident close-out &ndash; NMG" in nmg or "Incident close-out – NMG" in nmg
-    assert "Closed by the due date" in nmg and "<b>3</b><em>60%</em>" in nmg
-    assert "Overdue" in nmg and "<b>2</b><em>40%</em>" in nmg
-    assert "1 of the 2 overdue are still open." in nmg and "2 open and not yet due" in nmg
+    assert "Closed by the due date" in nmg
+    assert "Overdue" in nmg and "<b>1</b><em>25%</em>" in nmg and "<b>3</b><em>75%</em>" in nmg
+    assert "Not in the pie: 1 still open past the due date, 2 open and not yet due" in nmg
     ozland = section_of(page, "close-out-ozland")
-    assert "No incidents came due." in ozland
+    assert "No incidents closed." in ozland
     assert page.index('id="open-incidents"') < page.index('id="close-out-nmg"') < page.index(
         'id="close-out-ozland"') < page.index('id="emergency-response"')

@@ -519,23 +519,20 @@ def _close_out(report):
     cards = ""
     for title, _ in config.CLOSE_OUT_COMPANIES:
         t = close_out["companies"][title]
-        overdue = t["late"] + t["open_overdue"]
-        items = [("Closed by the due date", t["on_time"]), ("Overdue", overdue)]
+        items = [("Closed by the due date", t["on_time"]), ("Overdue", t["late"])]
         body = (_pie(f"Incident close-out, {title}", items, (MET_COLOUR, MISSED_COLOUR))
-                if t["on_time"] + overdue else '<p class="note">No incidents came due.</p>')
-        notes = [f'{t["open_overdue"]} of the {overdue} overdue are still open.'] if t["open_overdue"] else []
-        left_out = ([f'{t["not_due"]} open and not yet due'] if t["not_due"] else []) + (
+                if t["on_time"] + t["late"] else '<p class="note">No incidents closed.</p>')
+        left_out = ([f'{t["open_overdue"]} still open past the due date'] if t["open_overdue"] else []) + (
+            [f'{t["not_due"]} open and not yet due'] if t["not_due"] else []) + (
             [f'{t["no_target"]} with no target or close date'] if t["no_target"] else [])
         if left_out:
-            notes.append(f'Not in the pie: {", ".join(left_out)}.')
-        if notes:
-            body += f'<p class="note">{escape(" ".join(notes))}</p>'
+            body += f'<p class="note">{escape("Not in the pie: " + ", ".join(left_out) + ".")}</p>'
         slug = title.split()[0].lower()
         cards += _visual(6, f"Incident close-out – {title}", body, f"close-out-{slug}",
                          sub=f'last 12 months, since {close_out["since"]}')
     note = ('<p class="note" style="grid-column:1/-1">Incidents reported in the last 12 months, by the company of the person '
-            "each was reported to. Overdue means closed after its target close date, or still open "
-            "past it. Close dates come from PeopleTray&rsquo;s web app, as the API does not have them."
+            "each was reported to. Closed incidents only: overdue means closed after its target close "
+            "date. Close dates come from PeopleTray&rsquo;s web app, as the API does not have them."
             + (f' {close_out["unmatched"]} incidents were reported to people no longer in PeopleTray '
                "and are not counted." if close_out["unmatched"] else "") + "</p>")
     return f'<div id="close-out" class="group">{cards}{note}</div>'

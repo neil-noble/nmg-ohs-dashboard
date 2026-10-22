@@ -413,8 +413,9 @@ def build_close_out(events, people, closed, today):
     for NMG and for Ozland Drill and Blast (Neil, 2026-10-22).
 
     `closed` is {event id: close date} from PeopleTray's web app (the API has no close date);
-    None when it could not be read. Overdue = closed after the target date, or still open past
-    it. Open events not yet due, and events with no target date, are counted but not charted.
+    None when it could not be read. Overdue = closed after the target date (Neil, 2026-10-22:
+    closed incidents only). Open events, and events with no target date, are counted but not
+    charted.
     """
     if closed is None:
         return None
