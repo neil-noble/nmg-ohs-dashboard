@@ -49,7 +49,7 @@ def action(status, due=None, completed=None, assignee=FAKE_NAME,
 
 
 def checklist(name, status="Open", workgroup="CPO - Geology", day="2026-09-10"):
-    return {"checklistName": name, "workflowStatus": status, "person": FAKE_NAME, "user": FAKE_NAME,
+    return {"checklistName": name, "workflowStatus": status, "person": FAKE_NAME, "user": FAKE_NAME, "userId": None,
             "workgroup": workgroup, "checklistDateTime": f"{day}T00:00:00"}
 
 

@@ -100,6 +100,8 @@ WORKFLOWS_NOT_CHARTED = ("Uniform Order", "Medical Declaration Form", "Explorati
 # Leading indicators (Neil, 2026-10-21): near misses are events, hazards are this PeopleTray form.
 HAZARD_REPORT_FORM = "Hazard Report Form"
 REPORTING_SERIES = ("Near misses", "Hazard reports")
+# Reports by company: a reporter who is not in the people feed (Neil, 2026-10-22).
+UNKNOWN_COMPANY = "Not in PeopleTray"
 
 NAVY, RIVER, GOLD, PALE_GOLD = "#083045", "#55848A", "#927128", "#B19045"
 SAND, COOL_GREY, BLACK = "#F1DCAA", "#DBDBD3", "#333334"

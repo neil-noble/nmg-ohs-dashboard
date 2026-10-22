@@ -297,6 +297,25 @@ def test_near_miss_and_hazard_reporting():
     assert table["Hazard reports"] == ["1", "–", "2", "3", "–", "1", "–", "1"]
 
 
+def test_reports_by_company_follow_the_reporter():
+    people = [sample.person("CPO - Ozland", employer="Ozland Drill and Blast", pid=7, first="Oz", last="DRILLER"),
+              sample.person("CPO - Geology", pid=8, first="Nina", last="NMG")]
+    events = [sample.event(1, "2026-09-03", "CPO - Ozland", "Near Miss", "Near Miss (Other)"),
+              sample.event(2, "2026-08-03", "CPO - Ozland", "Near Miss", "Near Miss (Other)"),
+              sample.event(3, "2026-06-03", "CPO - Ozland", "Near Miss", "Near Miss (Other)")]   # last FY
+    events[0]["reportedBy"] = "Oz  driller"
+    events[1]["reportedBy"] = "Somebody GONE"
+    checklists = [dict(sample.hazard("2026-07-10"), userId=8), dict(sample.hazard("2026-09-10"), userId=8),
+                  dict(sample.hazard("2026-09-12", workgroup="CPO - Ozland"), userId=7)]
+    raw = dict(sample.RAW, events=events, checklists=checklists, people=people)
+    rows = metrics.build_report(raw, sample.TODAY, "x")["reporting"]["by_company"]
+    assert [group["company"] for group in rows] == [
+        "New Murchison Gold Ltd", "Ozland Drill and Blast", config.UNKNOWN_COMPANY]
+    assert rows[0]["rows"] == [("Near misses", ["–", "–", "–", "–"]), ("Hazard reports", ["1", "–", "1", "2"])]
+    assert rows[1]["rows"] == [("Near misses", ["–", "–", "1", "1"]), ("Hazard reports", ["–", "–", "1", "1"])]
+    assert rows[2]["rows"] == [("Near misses", ["–", "1", "–", "1"]), ("Hazard reports", ["–", "–", "–", "–"])]
+
+
 def test_open_incident_actionee_is_whoever_holds_the_step():
     waiting = sample.event(1, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow",
                            reported_to="Sue  SUPERVISOR ", step="Initiator to add information")
@@ -346,3 +365,10 @@ def test_close_out_needs_the_web_app_close_dates(report):
     with_web = metrics.build_report(dict(sample.RAW, web_charts=dict(WEB, closed_events={})),
                                     sample.TODAY, "x")
     assert set(with_web["close_out"]["companies"]) == {"NMG", "Ozland Drill and Blast"}
+
+
+def test_nmg_and_ozland_always_have_a_row_in_reports_by_company():
+    raw = dict(sample.RAW, events=[], checklists=[])
+    rows = metrics.build_report(raw, sample.TODAY, "x")["reporting"]["by_company"]
+    assert [group["company"] for group in rows] == ["New Murchison Gold Ltd", "Ozland Drill and Blast"]
+    assert all(cells == ["–"] * 4 for group in rows for _, cells in group["rows"])

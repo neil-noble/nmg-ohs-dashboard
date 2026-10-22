@@ -72,6 +72,7 @@ def normalise_events(events, injuries, issues):
         out.append({
             "id": ev.get("eventId"), "day": day, "ym": (day.year, day.month),
             "bucket": which, "row": row, "injury_class": injury_class,
+            "reported_by": ev.get("reportedBy"),
             "open": "open" in _text(ev.get("eventStatus")).lower(),
             "return_day": max(filter(None, (parse_day(d.get("returnWorkDate")) for d in details)),
                               default=None),
@@ -468,8 +469,9 @@ def build_open_workflows(events, checklists, keep=9):
     return ranked
 
 
-def _hazard_reports(checklists):
-    """(bucket, month) for each submitted Hazard Report Form in Mining or Exploration."""
+def _hazard_reports(checklists, by_id):
+    """(bucket, month, company) for each submitted Hazard Report Form in Mining or Exploration.
+    The company is the submitter's employer, looked up by their PeopleTray id."""
     out = []
     for c in checklists:
         name = " ".join(_text(c.get("checklistName")).split())
@@ -478,28 +480,46 @@ def _hazard_reports(checklists):
         which = config.bucket(c.get("workgroup"))
         day = parse_day(c.get("checklistDateTime")) or parse_day(c.get("submitedDateTime"))
         if which in config.BUCKETS and day:
-            out.append((which, (day.year, day.month)))
+            out.append((which, (day.year, day.month), by_id.get(c.get("userId"))))
     return out
 
 
-def build_reporting(events, checklists, month):
+def build_reporting(events, checklists, month, people=()):
     """Near misses and hazard reports: by month for 12 months, one chart per area (Neil,
-    2026-10-22), and a table with every month of the financial year so far, then FYTD."""
+    2026-10-22), and a table with every month of the financial year so far, then FYTD, by area
+    and then by company (Neil, 2026-10-22).
+
+    The company is the reporter's employer: whoever reported the near miss or submitted the
+    hazard report. Reporters missing from the people feed are counted as unknown.
+    """
     points = rolling_12(month)
     columns, periods = fy_columns(month)
-    near_misses = [(e["bucket"], e["ym"]) for e in events if e["row"] == config.NEAR_MISS_ROW]
-    found = dict(zip(config.REPORTING_SERIES, (near_misses, _hazard_reports(checklists))))
+    by_id, by_name = contractor_lookup(people)
+    near_misses = [(e["bucket"], e["ym"], by_name.get(_name_key(e.get("reported_by"))))
+                   for e in events if e["row"] == config.NEAR_MISS_ROW]
+    found = dict(zip(config.REPORTING_SERIES, (near_misses, _hazard_reports(checklists, by_id))))
+    fytd = periods[-1]
+    companies = Counter(company or config.UNKNOWN_COMPANY
+                        for reports in found.values() for _, ym, company in reports if ym in fytd)
+    for _, employer in config.CLOSE_OUT_COMPANIES:       # NMG and Ozland are shown even with none
+        companies.setdefault(employer, 0)
+    ranked = sorted(companies, key=lambda c: (c == config.UNKNOWN_COMPANY, -companies[c], c))
     return {
         "labels": [short_label(p) for p in points],
-        "series": {which: [(name, [sum(1 for b, ym in found[name] if b == which and ym == p)
+        "series": {which: [(name, [sum(1 for b, ym, _ in found[name] if b == which and ym == p)
                                    for p in points])
                             for name in config.REPORTING_SERIES]
                    for which in config.BUCKETS},
         "columns": columns,
         "table": [{"label": name, "bold": False,
-                   "cells": [fmt_count(sum(1 for b, ym in found[name] if b == which and ym in months))
+                   "cells": [fmt_count(sum(1 for b, ym, _ in found[name] if b == which and ym in months))
                              for which in config.BUCKETS for months in periods]}
                   for name in config.REPORTING_SERIES],
+        "by_company": [{"company": company, "rows": [
+            (name, [fmt_count(sum(1 for _, ym, c in found[name]
+                                  if (c or config.UNKNOWN_COMPANY) == company and ym in months))
+                    for months in periods])
+            for name in config.REPORTING_SERIES]} for company in ranked],
     }
 
 
@@ -612,7 +632,7 @@ def build_report(raw, today, generated):
         "table_columns": fy_columns(month)[0],
         "trend": build_trend(events, hours, month),
         "event_trend": build_event_trend(events, month),
-        "reporting": build_reporting(events, raw.get("checklists", []), month),
+        "reporting": build_reporting(events, raw.get("checklists", []), month, raw["people"]),
         "injury_analysis": build_injury_analysis(events, month),
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),

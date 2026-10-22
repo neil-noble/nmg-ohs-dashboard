@@ -416,13 +416,35 @@ def _reporting(report, beside=""):
                 f"reporting-trend-{which.lower()}", sub="last 12 months")
         for which, series in reporting["series"].items())
     note = ('<p class="note">Near misses are safety events of type Near Miss; hazard reports are '
-            "Hazard Report Forms submitted in PeopleTray. More reporting is a good sign.</p>")
+            "Hazard Report Forms submitted in PeopleTray. More reporting is a good sign. The company is "
+            "the reporter&rsquo;s employer; &ldquo;Not in PeopleTray&rdquo; is a reporter missing "
+            "from its people list.</p>")
     return ('<div id="reporting" class="group">'
             + f'<div id="reporting-trend" class="col" style="--span:7">{charts}</div>'
             + '<div class="col">'
-            + _visual(5, "Reports by area", _matrix(report, reporting["table"], "Report", reporting["columns"]) + note,
+            + _visual(5, "Reports by area", _matrix(report, reporting["table"], "Report", reporting["columns"])
+                      + _by_company(reporting) + note,
                       "reporting-table", sub="each month of the financial year, and year to date")
             + beside + "</div></div>")
+
+
+def _by_company(reporting):
+    """The same reports by the reporter's company, both areas together, each FY month then FYTD."""
+    if not reporting["by_company"]:
+        return ""
+    subs = "".join(f"<th>{escape(column)}</th>" for column in reporting["columns"])
+    body = ""
+    for group in reporting["by_company"]:
+        for i, (name, cells) in enumerate(group["rows"]):
+            lead = (f'<th scope="rowgroup" rowspan="{len(group["rows"])}">{escape(group["company"])}</th>'
+                    if i == 0 else "")
+            body += (f'<tr{" class=company-start" if i == 0 else ""}>{lead}<th scope="row">{escape(name)}</th>'
+                     + "".join(f"<td>{escape(cell)}</td>" for cell in cells) + "</tr>")
+    return (f'<div id="reporting-companies" class="scroll"><table class="matrix companies"><thead>'
+            f'<tr><th colspan="2"></th><th colspan="{len(reporting["columns"])}" '
+            f'style="background:{config.RIVER}">By company, Mining and Exploration</th></tr>'
+            f'<tr><th>Company</th><th style="text-align:left">Report</th>{subs}</tr></thead>'
+            f"<tbody>{body}</tbody></table></div>")
 
 
 def _event_mix(report):

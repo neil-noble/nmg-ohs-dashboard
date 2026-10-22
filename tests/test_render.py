@@ -263,9 +263,13 @@ def test_near_miss_and_hazard_reporting_visuals(page):
         assert "Near misses" in trend and "Hazard reports" in trend
     table = section_of(page, "reporting-table")
     assert re.search(r'colspan="4"[^>]*>Mining<', table) and re.search(r'colspan="4"[^>]*>Exploration<', table)
-    assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>FYTD</th>") == 2
+    assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>FYTD</th>") == 3    # 2 areas + by company
     assert ("<th scope=\"row\">Hazard reports</th><td>1</td><td>–</td><td>2</td><td>3</td>"
             "<td>–</td><td>1</td><td>–</td><td>1</td>") in table
+    # By company sits under the area table, inside the same card.
+    assert table.index("Exploration<") < table.index('id="reporting-companies"')
+    assert ">By company, Mining and Exploration<" in table and "<th>Company</th>" in table
+    assert '<th scope="rowgroup" rowspan="2">' in table
 
 
 def test_ozland_page_keeps_what_the_ert_dashboard_reads(report):
