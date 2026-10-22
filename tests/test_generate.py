@@ -38,3 +38,37 @@ def test_read_web_charts_never_raises():
     assert generate_dashboard.read_web_charts(lambda env=None: None) == (None, None)
     charts = {"sheq_actions": [], "open_workflows": []}
     assert generate_dashboard.read_web_charts(lambda env=None: charts) == (charts, None)
+
+
+def test_web_figures_are_reused_for_30_minutes(tmp_path):
+    from datetime import date, datetime, timedelta, timezone
+    cache = tmp_path / "web" / "web.json"
+    start = datetime(2026, 10, 22, 8, 0, tzinfo=timezone.utc)
+    charts = {"sheq_actions": [("Assigned", 5)], "open_workflows": [("Safety Events", 2)],
+              "closed_events": {"30803": date(2026, 10, 8)}}
+    calls = []
+
+    def fetcher():
+        calls.append(1)
+        return charts
+
+    assert generate_dashboard.read_web_charts(fetcher, cache, start) == (charts, None)
+    later = generate_dashboard.read_web_charts(fetcher, cache, start + timedelta(minutes=29))
+    assert later == (charts, None) and len(calls) == 1             # from the cache, no sign-in
+    generate_dashboard.read_web_charts(fetcher, cache, start + timedelta(minutes=30))
+    assert len(calls) == 2                                          # stale: signs in again
+    assert generate_dashboard.load_web_cache(tmp_path / "missing.json", start) is None
+
+
+def test_a_failed_sign_in_does_not_overwrite_the_cache(tmp_path):
+    import webcharts
+    from datetime import datetime, timedelta, timezone
+    cache = tmp_path / "web.json"
+    now = datetime(2026, 10, 22, 8, 0, tzinfo=timezone.utc)
+    cache.write_text("not json", encoding="utf-8")
+
+    def broken():
+        raise webcharts.WebChartsError("sign-in rejected")
+
+    assert generate_dashboard.read_web_charts(broken, cache, now) == (None, "sign-in rejected")
+    assert cache.read_text(encoding="utf-8") == "not json"

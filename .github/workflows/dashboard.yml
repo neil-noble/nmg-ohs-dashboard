@@ -2,10 +2,10 @@ name: NMG OHS Dashboard
 
 on:
   schedule:
-    # AWST = UTC+8. GitHub delivers schedule events late, so there are two
-    # slots: either one alone keeps the page fresh for the day.
-    - cron: '30 21 * * *'   # 05:30 AWST
-    - cron: '0 4 * * *'     # 12:00 AWST
+    # Every 5 minutes (Neil, 2026-10-22). The repo is public, so Actions minutes are free.
+    # GitHub runs scheduled workflows late or skips them when busy, so the real gap is often
+    # longer than 5 minutes.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -23,9 +23,10 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      # Actions are pinned to exact commits, so a moved tag cannot change what runs.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1   # v6
         with:
           python-version: '3.12'
 
@@ -34,10 +35,25 @@ jobs:
           python -m pip install --quiet pytest
           python -m pytest -q
 
-      # The SHEQ Actions and Open Workflows charts are read off PeopleTray's own SHEQ home
-      # page, which needs a browser sign-in. If the sign-in fails the build carries on with
-      # the API versions of those two charts and says so on the page.
+      # The SHEQ Actions and Open Workflows charts, and the incidents' close dates, are read off
+      # PeopleTray's web app, which needs a browser sign-in. That happens at most every 30
+      # minutes; in between, the last sign-in's figures come from the cache. If the sign-in
+      # fails the build carries on with the API versions and says so on the page.
+      - name: Restore the web figures
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+        with:
+          path: .webcache
+          key: web-${{ github.run_id }}
+          restore-keys: web-
+
+      - name: Are the web figures fresh?
+        id: web
+        run: echo "fresh=$(python generate_dashboard.py --web-cache-fresh)" >> "$GITHUB_OUTPUT"
+        env:
+          WEB_CACHE: .webcache/web.json
+
       - name: Install the browser
+        if: steps.web.outputs.fresh != 'true'
         run: |
           python -m pip install --quiet playwright==1.62.0
           python -m playwright install --with-deps --only-shell chromium
@@ -45,9 +61,17 @@ jobs:
       - name: Generate dashboard HTML
         run: python generate_dashboard.py
         env:
+          WEB_CACHE: .webcache/web.json
           PT_API_KEY: ${{ secrets.PT_API_KEY }}
           PT_WEB_USERNAME: ${{ secrets.PT_WEB_USERNAME }}
           PT_WEB_PASSWORD: ${{ secrets.PT_WEB_PASSWORD }}
+
+      - name: Save the web figures
+        if: steps.web.outputs.fresh != 'true' && hashFiles('.webcache/web.json') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+        with:
+          path: .webcache
+          key: web-${{ github.run_id }}
 
       - name: Push to public site repo
         # A write deploy key on nmg-ohs-site only. It reaches the shell as an
@@ -67,8 +91,9 @@ jobs:
           cd /tmp/nmg-ohs-site
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html ozland.html
-          git diff --staged --quiet || (
-            git commit -m "Update dashboard $(date -u +'%Y-%m-%d %H:%M UTC')" &&
-            git push
-          )
+          # One commit, replaced each time: at 288 builds a day the site repo would otherwise grow
+          # without end. Its own workflow publishes each push to Pages.
+          git checkout --quiet --orphan publish
+          git add -A
+          git commit --quiet -m "Dashboard $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push --quiet --force origin publish:main
