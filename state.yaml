@@ -27,7 +27,8 @@ decisions:
   events_table: (2026-10-22) Neil - Events table = every FY month + FYTD per area (metrics.fy_columns, report.table_columns). Monthly rate cells NA (FYTD = rolling 12); head count at each month end
   event_trend: (2026-10-22) Neil - Events by month = grouped bars, one per TREND_GROUP per month (tooltips), scrolls sideways on phones
   open_workflows_excluded: (2026-10-22) Neil - Prestart - Light Vehicles off the Open workflows pie; config.WORKFLOWS_NOT_CHARTED holds both names (API 'Prestart - Light Vehicles', web chart 'Light Vehicle Prestarts') plus Exploration Daily Prestart and 2 HR forms
-  privacy: public Pages site -> counts and rates only, EXCEPT the Outstanding corrective actions list, which shows each open action text and actionee name (Neil asked 2026-10-11)
+  open_incident_actionee: (2026-10-22) Neil - Open incidents lists the actionee by name. Events feed has no assignee (owner blank, investigator ~never set), so actionee = holder of currentStep: 'Initiator to add information' -> reportedBy, any other step -> reportedTo
+  privacy: public Pages site -> counts and rates only, EXCEPT the Outstanding corrective actions list, which shows each open action text and actionee name (Neil asked 2026-10-11); since 2026-10-22 also the Open incidents actionee name
 next: Neil sets PT_WEB_USERNAME + PT_WEB_PASSWORD secrets -> run workflow -> confirm page note says "As shown on PeopleTray"; revoke unused PAGES_TOKEN PAT
 publish: workflow dashboard.yml (05:30 + 12:00 AWST, manual dispatch) pushes via SSH deploy key - secret SITE_DEPLOY_KEY, deploy key "nmg-ohs-dashboard workflow" on the site repo. PAGES_TOKEN secret is unused (PAT lacked write, and was pasted in chat) - delete/revoke.
 wix: no REST API creates an Editor page with an iframe - manual editor step

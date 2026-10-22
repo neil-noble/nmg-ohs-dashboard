@@ -236,7 +236,7 @@ def test_action_contractor_prefers_the_person_id_then_the_name():
 def test_open_incidents_are_open_events_most_overdue_first(report):
     assert report["open_incidents"] == {"total": 1, "rows": [{
         "event": "6", "date": "20 Sep 2026", "type": "Near Miss", "workgroup": "CPO - MLG",
-        "step": "Assess the Event", "contractor": "Acme Haulage", "due": "5 Oct 2026",
+        "step": "Assess the Event", "actionee": "Otto owner", "contractor": "Acme Haulage", "due": "5 Oct 2026",
         "status": "Overdue 6 days", "overdue": True}]}
 
 
@@ -253,6 +253,7 @@ def test_open_incidents_keep_the_most_overdue_and_leave_out_other_sites():
     assert [e["event"] for e in listed["rows"]] == [str(n) for n in range(1, 16)]
     assert listed["rows"][0]["status"] == "Overdue 10 days" and listed["rows"][0]["contractor"] == "–"
     assert listed["rows"][10]["status"] == "Due today"
+    assert listed["rows"][0]["actionee"] == sample.FAKE_NAME
     every = metrics.build_open_incidents(events, [], sample.TODAY, keep=50)
     assert every["rows"][-1]["event"] == "30" and every["rows"][-1]["status"] == "No target date"
 
@@ -294,3 +295,16 @@ def test_near_miss_and_hazard_reporting():
     assert report["columns"] == ["Jul", "Aug", "Sep", "FYTD"]       # every month from 1 July, then FYTD
     assert table["Near misses"] == ["–", "–", "2", "2", "–", "–", "–", "–"]
     assert table["Hazard reports"] == ["1", "–", "2", "3", "–", "1", "–", "1"]
+
+
+def test_open_incident_actionee_is_whoever_holds_the_step():
+    waiting = sample.event(1, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow",
+                           reported_to="Sue  SUPERVISOR ", step="Initiator to add information")
+    waiting["reportedBy"] = "Ian  INITIATOR"
+    assessing = sample.event(2, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow",
+                             reported_to="Sue  SUPERVISOR ", step="Assess the Event")
+    nobody = sample.event(3, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow",
+                          reported_to=None, step="Assess the Event")
+    rows = metrics.build_open_incidents([waiting, assessing, nobody], [], sample.TODAY)["rows"]
+    assert {r["event"]: r["actionee"] for r in rows} == {
+        "1": "Ian INITIATOR", "2": "Sue SUPERVISOR", "3": "Unassigned"}

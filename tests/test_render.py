@@ -278,3 +278,9 @@ def test_ozland_page_keeps_what_the_ert_dashboard_reads(report):
                      r"(met|not met)</title>", page)
     assert "required: 2 day + 2 night" in page
     assert re.search(r"Data as at\s*(?:<[^>]+>\s*)*11 Oct 2026, 18:30 AWST", page)
+
+
+def test_open_incidents_name_the_actionee(page):
+    section = section_of(page, "open-incidents")
+    assert "<th>Completion step</th><th>Actionee</th><th>Contractor</th>" in section
+    assert "<td>Assess the Event</td><td>Otto owner</td><td>Acme Haulage</td>" in section

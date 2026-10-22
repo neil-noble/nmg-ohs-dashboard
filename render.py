@@ -492,14 +492,16 @@ def _open_incidents(report):
     rows = "".join(
         f'<tr><td>{escape(e["event"])}</td><td>{escape(e["date"])}</td><td>{escape(e["type"])}</td>'
         f'<td>{escape(e["workgroup"])}</td><td>{escape(e["step"])}</td>'
-        f'<td>{escape(e["contractor"])}</td><td>{escape(e["due"])}</td>'
+        f'<td>{escape(e["actionee"])}</td><td>{escape(e["contractor"])}</td><td>{escape(e["due"])}</td>'
         f'<td>{_pill(e["status"], e["overdue"])}</td></tr>'
         for e in incidents["rows"])
     inner = ('<div class="scroll"><table class="actions incidents"><thead><tr><th>Event</th><th>Date</th>'
-             "<th>Type</th><th>Workgroup</th><th>Completion step</th><th>Contractor</th>"
+             "<th>Type</th><th>Workgroup</th><th>Completion step</th><th>Actionee</th><th>Contractor</th>"
              f"<th>Target close</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table></div>"
              '<p class="note">Open safety events in PeopleTray against their target close date. The '
-             "contractor is the employer of the person the event was reported to.</p>"
+             "actionee is whoever holds the current step: the person the event was reported to, or "
+             "its initiator when it is waiting on them to add information. The contractor is the "
+             "employer of the person the event was reported to.</p>"
              if rows else '<p class="note">No open incidents.</p>')
     shown = len(incidents["rows"])
     sub = (f'{incidents["total"]} open, most overdue first' if shown == incidents["total"]

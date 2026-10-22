@@ -375,6 +375,9 @@ def build_open_incidents(events, people, today, keep=config.OPEN_INCIDENTS_SHOWN
     """Open Mining and Exploration events, most overdue against their target close date first.
 
     The contractor is the employer of the person the event was reported to (Neil, 2026-10-19).
+    The actionee is whoever holds the current step (Neil, 2026-10-22): the feed has no assignee
+    (owner is always blank), so "Initiator to add information" goes back to the person who
+    reported it and every other step sits with the person it was reported to.
     No description reaches the page: the free text names people, breath test breaches among them.
     """
     _, by_name = contractor_lookup(people)
@@ -387,12 +390,15 @@ def build_open_incidents(events, people, today, keep=config.OPEN_INCIDENTS_SHOWN
         day = parse_day(ev.get("eventDateTime")) or parse_day(ev.get("eventDate"))
         due = parse_day(ev.get("targetCloseDateTime")) or parse_day(ev.get("targetCloseDate"))
         status, overdue = _due_status(due, today)
+        step = " ".join(_text(ev.get("currentStep")).split()) or "Open"
+        holder = ev.get("reportedBy") if "initiator" in step.lower() else ev.get("reportedTo")
         listed.append((due is None, due or today, {
             "event": str(ev.get("eventId") or "–"),
             "date": _day_label(day),
             "type": _text(ev.get("eventType")) or "Not recorded",
             "workgroup": " ".join(_text(ev.get("workGroup")).split()),
-            "step": " ".join(_text(ev.get("currentStep")).split()) or "Open",
+            "step": step,
+            "actionee": " ".join(_text(holder).split()) or "Unassigned",
             "contractor": by_name.get(_name_key(ev.get("reportedTo"))) or "–",
             "due": _day_label(due),
             "status": status.replace("No due date", "No target date"),
