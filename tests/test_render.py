@@ -284,3 +284,25 @@ def test_open_incidents_name_the_actionee(page):
     section = section_of(page, "open-incidents")
     assert "<th>Completion step</th><th>Actionee</th><th>Contractor</th>" in section
     assert "<td>Assess the Event</td><td>Otto owner</td><td>Acme Haulage</td>" in section
+
+
+def test_close_out_says_so_when_the_web_app_was_not_read(page):
+    section = section_of(page, "close-out")
+    assert "could not be read" in section and "<svg" not in section
+
+
+def test_close_out_pies_for_nmg_and_ozland():
+    from tests.test_metrics_report import WEB
+    raw = dict(sample.RAW, web_charts=dict(WEB, closed_events={}))
+    report = metrics.build_report(raw, sample.TODAY, "x")
+    report["close_out"]["companies"]["NMG"].update(on_time=3, late=1, open_overdue=1, not_due=2)
+    page = render.render(report)
+    nmg = section_of(page, "close-out-nmg")
+    assert "Incident close-out &ndash; NMG" in nmg or "Incident close-out – NMG" in nmg
+    assert "Closed by the due date" in nmg and "<b>3</b><em>60%</em>" in nmg
+    assert "Overdue" in nmg and "<b>2</b><em>40%</em>" in nmg
+    assert "1 of the 2 overdue are still open." in nmg and "2 open and not yet due" in nmg
+    ozland = section_of(page, "close-out-ozland")
+    assert "No incidents came due." in ozland
+    assert page.index('id="open-incidents"') < page.index('id="close-out-nmg"') < page.index(
+        'id="close-out-ozland"') < page.index('id="emergency-response"')

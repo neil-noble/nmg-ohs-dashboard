@@ -15,7 +15,7 @@ def test_report_keys(report):
                            "injury_analysis", "status", "unmapped", "undated",
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
-                           "charts_source", "open_incidents", "table_columns",
+                           "charts_source", "open_incidents", "table_columns", "close_out",
                            "ozland_ert", "reporting"}
     assert report["month_label"] == "September 2026"
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
@@ -308,3 +308,41 @@ def test_open_incident_actionee_is_whoever_holds_the_step():
     rows = metrics.build_open_incidents([waiting, assessing, nobody], [], sample.TODAY)["rows"]
     assert {r["event"]: r["actionee"] for r in rows} == {
         "1": "Ian INITIATOR", "2": "Sue SUPERVISOR", "3": "Unassigned"}
+
+
+def test_close_out_counts_overdue_against_closed_by_the_due_date():
+    from datetime import date
+    people = [sample.person("CPO - Ozland", employer="Ozland Drill and Blast", first="Oz", last="BOSS"),
+              sample.person("CPO - Geology", first="Nina", last="NMG"),
+              sample.person("CPO - MLG", employer="Acme Haulage", first="Al", last="ACME")]
+
+    def ev(n, day, to, target, status="Closed and Saved"):
+        return sample.event(n, day, "CPO - Ozland", "Near Miss", status=status, reported_to=to,
+                            target=target and f"{target}T00:00:00")
+
+    events = [ev(1, "2026-09-01", "Oz BOSS", "2026-09-10"),                     # closed on the day
+              ev(2, "2026-09-01", "Oz  boss ", "2026-09-10"),                   # closed a day late
+              ev(3, "2026-09-01", "Oz BOSS", "2026-10-01", "Open Workflow"),    # open, past target
+              ev(4, "2026-10-01", "Oz BOSS", "2026-11-01", "Open Workflow"),    # open, not yet due
+              ev(5, "2026-09-01", "Oz BOSS", None),                             # no target
+              ev(6, "2026-09-01", "Oz BOSS", "2026-09-10"),                     # closed, no close date
+              ev(7, "2025-10-11", "Oz BOSS", "2025-10-12"),                     # 12 months + 1 day ago
+              ev(8, "2026-09-01", "Nina NMG", "2026-09-30"),
+              ev(9, "2026-09-01", "Al ACME", "2026-09-30"),                     # another company
+              ev(10, "2026-09-01", "Gone PERSON", "2026-09-30")]                # not in PeopleTray
+    closed = {"1": date(2026, 9, 10), "2": date(2026, 9, 11), "7": date(2025, 10, 20),
+              "8": date(2026, 9, 2), "9": date(2026, 10, 9), "10": date(2026, 10, 9)}
+    out = metrics.build_close_out(events, people, closed, sample.TODAY)
+    assert out["companies"]["Ozland Drill and Blast"] == {
+        "on_time": 1, "late": 1, "open_overdue": 1, "not_due": 1, "no_target": 2}
+    assert out["companies"]["NMG"] == {"on_time": 1, "late": 0, "open_overdue": 0, "not_due": 0,
+                                       "no_target": 0}
+    assert out["unmatched"] == 1 and out["since"] == "12 Oct 2025"
+    assert metrics.build_close_out(events, people, None, sample.TODAY) is None
+
+
+def test_close_out_needs_the_web_app_close_dates(report):
+    assert report["close_out"] is None
+    with_web = metrics.build_report(dict(sample.RAW, web_charts=dict(WEB, closed_events={})),
+                                    sample.TODAY, "x")
+    assert set(with_web["close_out"]["companies"]) == {"NMG", "Ozland Drill and Blast"}

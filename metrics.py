@@ -1,7 +1,7 @@
 """Raw PeopleTray lists in, one report dict out. Pure functions, no I/O."""
 import calendar
 from collections import Counter
-from datetime import date
+from datetime import date, timedelta
 
 import config
 from periods import (add_months, fy_start, long_label, month_end, month_range, parse_day,
@@ -408,6 +408,45 @@ def build_open_incidents(events, people, today, keep=config.OPEN_INCIDENTS_SHOWN
     return {"total": len(listed), "rows": [entry for _, _, entry in listed[:keep]]}
 
 
+def build_close_out(events, people, closed, today):
+    """Incidents in the last 12 months that went overdue vs those closed by their target date,
+    for NMG and for Ozland Drill and Blast (Neil, 2026-10-22).
+
+    `closed` is {event id: close date} from PeopleTray's web app (the API has no close date);
+    None when it could not be read. Overdue = closed after the target date, or still open past
+    it. Open events not yet due, and events with no target date, are counted but not charted.
+    """
+    if closed is None:
+        return None
+    _, by_name = contractor_lookup(people)
+    since = today - timedelta(days=365)
+    companies = {employer: title for title, employer in config.CLOSE_OUT_COMPANIES}
+    out = {title: {"on_time": 0, "late": 0, "open_overdue": 0, "not_due": 0, "no_target": 0}
+           for title, _ in config.CLOSE_OUT_COMPANIES}
+    unmatched = 0
+    for ev in events:
+        day = parse_day(ev.get("eventDateTime")) or parse_day(ev.get("eventDate"))
+        if not day or not since < day <= today:
+            continue
+        if config.bucket(ev.get("workGroup")) not in (config.MINING, config.EXPLORATION):
+            continue
+        title = companies.get(by_name.get(_name_key(ev.get("reportedTo"))))
+        if title is None:
+            unmatched += not by_name.get(_name_key(ev.get("reportedTo")))
+            continue
+        tally = out[title]
+        target = parse_day(ev.get("targetCloseDateTime")) or parse_day(ev.get("targetCloseDate"))
+        is_open = "open" in _text(ev.get("eventStatus")).lower()
+        closed_on = None if is_open else closed.get(str(ev.get("eventId")))
+        if target is None or (not is_open and closed_on is None):
+            tally["no_target"] += 1
+        elif is_open:
+            tally["open_overdue" if target < today else "not_due"] += 1
+        else:
+            tally["on_time" if closed_on <= target else "late"] += 1
+    return {"companies": out, "unmatched": unmatched, "since": _day_label(since + timedelta(days=1))}
+
+
 def build_open_workflows(events, checklists, keep=9):
     """Open workflows by type, the way PeopleTray's own chart slices them.
 
@@ -578,6 +617,8 @@ def build_report(raw, today, generated):
         "status": build_status(events, raw["actions"], month, today),
         "open_actions": open_actions,
         "open_incidents": build_open_incidents(raw["events"], raw["people"], today),
+        "close_out": build_close_out(raw["events"], raw["people"],
+                                     (web or {}).get("closed_events"), today),
         "ozland_ert": build_ozland_ert(raw["people"], raw.get("roster", []), raw.get("shifttypes", []),
                                        raw.get("competencies", []), today),
         "open_workflows": open_workflows,

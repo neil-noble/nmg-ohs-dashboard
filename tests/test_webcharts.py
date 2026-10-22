@@ -1,3 +1,6 @@
+import json
+from datetime import date
+
 import pytest
 
 import webcharts
@@ -16,6 +19,11 @@ SHEQ_HOME = """
     });
 </script></body></html>
 """
+# Shaped like the Safety Events search's data feed, closed events only (trimmed).
+CLOSED = json.dumps({"sEcho": 1, "iTotalRecords": 3, "aaData": [
+    {"EntityId": 30803, "TransitionDate": "/Date(1791412086050)/", "EventCloseDate": "/Date(1793923200000)/"},
+    {"EntityId": 30722, "TransitionDate": "/Date(1791180724950)/", "EventCloseDate": "/Date(1791158400000)/"},
+    {"EntityId": 1, "TransitionDate": "/Date(-62135596800000)/"}]})
 LOGIN_PAGE = "<html><head><title>PeopleTray Sign In</title></head><body><form id='login'></form></body></html>"
 
 
@@ -51,11 +59,22 @@ def test_credentials_are_passed_to_the_reader():
 
     def reader(username, password):
         seen.append((username, password))
-        return SHEQ_HOME
+        return SHEQ_HOME, CLOSED
 
     charts = webcharts.fetch_web_charts({"PT_WEB_USERNAME": "neil", "PT_WEB_PASSWORD": "s3cret"}, reader)
     assert seen == [("neil", "s3cret")]
     assert charts["sheq_actions"][2] == ("Overdue", 3)
+    assert charts["closed_events"] == {"30803": date(2026, 10, 8), "30722": date(2026, 10, 5)}
+
+
+def test_closed_events_are_dated_in_perth_and_placeholders_dropped():
+    # 1791180724950 ms is 4 Oct 2026 23:32 UTC, which is 5 Oct in Perth.
+    assert webcharts.parse_closed_events(CLOSED) == {"30803": date(2026, 10, 8), "30722": date(2026, 10, 5)}
+
+
+def test_a_closed_events_feed_that_is_not_json_is_an_error():
+    with pytest.raises(webcharts.WebChartsError, match="closed safety events"):
+        webcharts.parse_closed_events("<html>sign in</html>")
 
 
 def test_any_reader_failure_becomes_a_web_charts_error_without_the_password():

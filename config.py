@@ -112,6 +112,12 @@ TREND_COLOURS = (NAVY, RIVER, GOLD, "#D8C8A2", "#8498A2", "#99999A")
 # The open incidents table shows this many, most overdue first (Neil, 2026-10-19).
 OPEN_INCIDENTS_SHOWN = 15
 
+# Incident close-out pies under Open incidents (Neil, 2026-10-22): (title, employer in the
+# people feed). The company is the employer of the person the event was reported to, the same
+# rule as the Contractor column.
+CLOSE_OUT_COMPANIES = (("NMG", "New Murchison Gold Ltd"),
+                       ("Ozland Drill and Blast", "Ozland Drill and Blast"))
+
 # Ozland's ERT obligation (Neil, 2026-10-19): 2 qualified ERT members on day shift and 2 on night
 # shift, every day. Qualified = Competent in all six ERT dial competencies, as on the ERT dashboard.
 OZLAND_EMPLOYER = "ozland"          # matched inside the person's employer, case-insensitive
