@@ -284,17 +284,18 @@ def test_expired_competency_stops_counting():
 
 def test_near_miss_and_hazard_reporting():
     report = metrics.build_report(sample.RAW, sample.TODAY, "x")["reporting"]
-    assert report["labels"][-1] == "Sep 26" and len(report["labels"]) == 12
+    assert report["labels"][-1] == "Oct 26" and len(report["labels"]) == 12    # runs to today
+    assert report["to_date"] == "11 Oct 2026"
     assert list(report["series"]) == [config.MINING, config.EXPLORATION]
     mining, exploration = (dict(report["series"][b]) for b in (config.MINING, config.EXPLORATION))
     assert list(mining) == ["Near misses", "Hazard reports"]
-    assert mining["Hazard reports"][-3:] == [1, 0, 2]     # Jul, Aug, Sep: discarded, Perth, Oct left out
-    assert exploration["Hazard reports"][-3:] == [0, 1, 0]
+    assert mining["Hazard reports"][-4:] == [1, 0, 2, 1]  # Jul to Oct: discarded and Perth left out
+    assert exploration["Hazard reports"][-4:] == [0, 1, 0, 0]
     assert sum(mining["Near misses"]) == 2 and sum(exploration["Near misses"]) == 0
     table = {row["label"]: row["cells"] for row in report["table"]}
-    assert report["columns"] == ["Jul", "Aug", "Sep", "FYTD"]       # every month from 1 July, then FYTD
-    assert table["Near misses"] == ["–", "–", "2", "2", "–", "–", "–", "–"]
-    assert table["Hazard reports"] == ["1", "–", "2", "3", "–", "1", "–", "1"]
+    assert report["columns"] == ["Jul", "Aug", "Sep", "Oct", "FYTD"]   # every month from 1 July to today
+    assert table["Near misses"] == ["–", "–", "2", "–", "2", "–", "–", "–", "–", "–"]
+    assert table["Hazard reports"] == ["1", "–", "2", "1", "4", "–", "1", "–", "–", "1"]
 
 
 def test_reports_by_company_follow_the_reporter():
@@ -311,9 +312,9 @@ def test_reports_by_company_follow_the_reporter():
     rows = metrics.build_report(raw, sample.TODAY, "x")["reporting"]["by_company"]
     assert [group["company"] for group in rows] == [
         "New Murchison Gold Ltd", "Ozland Drill and Blast", config.UNKNOWN_COMPANY]
-    assert rows[0]["rows"] == [("Near misses", ["–", "–", "–", "–"]), ("Hazard reports", ["1", "–", "1", "2"])]
-    assert rows[1]["rows"] == [("Near misses", ["–", "–", "1", "1"]), ("Hazard reports", ["–", "–", "1", "1"])]
-    assert rows[2]["rows"] == [("Near misses", ["–", "1", "–", "1"]), ("Hazard reports", ["–", "–", "–", "–"])]
+    assert rows[0]["rows"] == [("Near misses", ["–"] * 5), ("Hazard reports", ["1", "–", "1", "–", "2"])]
+    assert rows[1]["rows"] == [("Near misses", ["–", "–", "1", "–", "1"]), ("Hazard reports", ["–", "–", "1", "–", "1"])]
+    assert rows[2]["rows"] == [("Near misses", ["–", "1", "–", "–", "1"]), ("Hazard reports", ["–"] * 5)]
 
 
 def test_open_incident_actionee_is_whoever_holds_the_step():
@@ -371,4 +372,4 @@ def test_nmg_and_ozland_always_have_a_row_in_reports_by_company():
     raw = dict(sample.RAW, events=[], checklists=[])
     rows = metrics.build_report(raw, sample.TODAY, "x")["reporting"]["by_company"]
     assert [group["company"] for group in rows] == ["New Murchison Gold Ltd", "Ozland Drill and Blast"]
-    assert all(cells == ["–"] * 4 for group in rows for _, cells in group["rows"])
+    assert all(cells == ["–"] * 5 for group in rows for _, cells in group["rows"])

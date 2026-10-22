@@ -413,10 +413,11 @@ def _reporting(report, beside=""):
         _visual(12, f"Near miss and hazard reporting – {which}",
                 _line_chart(f"Near miss and hazard reporting, {which}", reporting["labels"],
                             dict(series), REPORTING_COLOURS, width=640, fmt="{}"),
-                f"reporting-trend-{which.lower()}", sub="last 12 months")
+                f"reporting-trend-{which.lower()}", sub=f'last 12 months, to {reporting["to_date"]}')
         for which, series in reporting["series"].items())
     note = ('<p class="note">Near misses are safety events of type Near Miss; hazard reports are '
-            "Hazard Report Forms submitted in PeopleTray. More reporting is a good sign. The company is "
+            "Hazard Report Forms submitted in PeopleTray. More reporting is a good sign. The current "
+            "month is to date. The company is "
             "the reporter&rsquo;s employer; &ldquo;Not in PeopleTray&rdquo; is a reporter missing "
             "from its people list.</p>")
     return ('<div id="reporting" class="group">'
@@ -424,7 +425,8 @@ def _reporting(report, beside=""):
             + '<div class="col">'
             + _visual(5, "Reports by area", _matrix(report, reporting["table"], "Report", reporting["columns"])
                       + _by_company(reporting) + note,
-                      "reporting-table", sub="each month of the financial year, and year to date")
+                      "reporting-table",
+                      sub=f'each month of the financial year, and year to date, to {reporting["to_date"]}')
             + beside + "</div></div>")
 
 

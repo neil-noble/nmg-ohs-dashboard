@@ -632,7 +632,10 @@ def build_report(raw, today, generated):
         "table_columns": fy_columns(month)[0],
         "trend": build_trend(events, hours, month),
         "event_trend": build_event_trend(events, month),
-        "reporting": build_reporting(events, raw.get("checklists", []), month, raw["people"]),
+        # Reporting runs to today, the current month included (Neil, 2026-10-22); everything
+        # else stops at the last completed month.
+        "reporting": dict(build_reporting(events, raw.get("checklists", []), (today.year, today.month),
+                                          raw["people"]), to_date=_day_label(today)),
         "injury_analysis": build_injury_analysis(events, month),
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),
