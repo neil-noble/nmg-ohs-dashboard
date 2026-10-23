@@ -2,10 +2,10 @@ name: NMG OHS Dashboard
 
 on:
   schedule:
-    # Every 5 minutes (Neil, 2026-10-22). The repo is public, so Actions minutes are free.
-    # GitHub runs scheduled workflows late or skips them when busy, so the real gap is often
-    # longer than 5 minutes.
-    - cron: '*/5 * * * *'
+    # Every 5 minutes (Neil, 2026-10-22) comes from cron-job.org job 8705425, which starts this
+    # workflow with a token that can do nothing else. GitHub's own schedule ran a */5 cron only
+    # 3 times in 14 hours, so it is kept just as an hourly backup.
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
