@@ -6,9 +6,9 @@ def test_build_writes_the_page(tmp_path):
     out = tmp_path / "docs" / "index.html"
     report = generate_dashboard.build(sample.RAW, sample.TODAY, "11 Oct 2026, 18:30 AWST", out)
     page = out.read_text(encoding="utf-8")
-    assert report["month_label"] == "September 2026"
+    assert report["month_label"] == "October 2026"
     assert page.startswith("<!doctype html>")
-    assert "September 2026" in page
+    assert "October 2026 (to 11 Oct 2026)" in page
     assert "<img" not in page
     assert "Quixote" not in page
     assert 'id="ozland-ert"' in (out.parent / "ozland.html").read_text(encoding="utf-8")

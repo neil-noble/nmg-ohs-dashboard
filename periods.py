@@ -22,7 +22,8 @@ def add_months(ym, n):
 
 
 def reporting_month(today):
-    return add_months((today.year, today.month), -1)
+    """The current month, to date (Neil, 2026-10-25; it was the last completed month)."""
+    return (today.year, today.month)
 
 
 def fy_start(ym):

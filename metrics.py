@@ -5,11 +5,14 @@ from datetime import date, timedelta
 
 import config
 from periods import (add_months, fy_start, long_label, month_end, month_range, parse_day,
-                     rolling_12, short_label)
+                     reporting_month, rolling_12, short_label)
 
 _COUNTED_CLASSES = tuple(code for code, _ in config.INJURY_CLASSES)
 LTIFR_ROW = "Lost Time Injury Freq Rate (LTIFR)"
 TRIFR_ROW = "Total Recordable Injury Freq Rate (TRIFR)"
+# A month whose person hours PeopleTray does not have yet (they are entered once it is over).
+HOURS_NOT_ENTERED = "Not yet entered"
+HOURS_PENDING = "Pending"
 # Most severe first: an event with several injured people is classed by its worst injury.
 _SEVERITY = _COUNTED_CLASSES + config.NOT_COUNTED
 
@@ -109,6 +112,21 @@ def hours_sum(hours, bucket, months):
     return sum(hours.get((bucket, m), 0.0) for m in months)
 
 
+def has_hours(hours, month):
+    return any(hours.get((b, month)) for b in config.BUCKETS)
+
+
+def rates_month(hours, month):
+    """The month the frequency rates run to: the reporting month once its person hours are in
+    PeopleTray, otherwise the latest month before it that has them (Neil, 2026-10-25). Hours
+    are entered once a month, so the current month has none until it is over."""
+    for back in range(12):
+        candidate = add_months(month, -back)
+        if has_hours(hours, candidate):
+            return candidate
+    return month
+
+
 def rate(n, hours):
     return n * 1_000_000 / hours if hours else None
 
@@ -176,8 +194,9 @@ def fy_columns(month):
             [{m} for m in fy_months] + [set(fy_months)])
 
 
-def build_table(events, hours, people, month, issues=None):
+def build_table(events, hours, people, month, issues=None, today=None):
     periods = fy_columns(month)[1]
+    rates_to = rates_month(hours, month)
     last = len(periods) - 1
 
     def cells(value):
@@ -192,7 +211,7 @@ def build_table(events, hours, people, month, issues=None):
 
     def rate_row(index):
         return cells(lambda b, _, fytd:
-                     fmt_rate(frequency_rates(events, hours, b, month)[index]) if fytd else "NA")
+                     fmt_rate(frequency_rates(events, hours, b, rates_to)[index]) if fytd else "NA")
 
     rows_present = {e["row"] for e in events}
     table = [line(label, counted(code)) for code, label in config.INJURY_CLASSES]
@@ -209,19 +228,29 @@ def build_table(events, hours, people, month, issues=None):
     for label in list(config.FIXED_EVENT_ROWS) + sorted(rows_present - known):
         table.append(line(label, counted(label)))
 
-    # Head count at the end of each month; only the reporting month's notes unmapped workgroups.
+    # Head count at the end of each month, or today in the month to date; only the reporting
+    # month's notes unmapped workgroups.
+    def as_at(ym):
+        return min(month_end(ym), today) if today else month_end(ym)
+
     table.append(line("NMG Head Count", cells(
         lambda b, months, fytd: "NA" if fytd else fmt_count(head_count(
-            people, b, month_end(min(months)), issues if min(months) == month else None)))))
-    table.append(line("Total Person Hours Worked", cells(
-        lambda b, months, _: fmt_count(round(hours_sum(hours, b, months)))), bold=True))
+            people, b, as_at(min(months)), issues if min(months) == month else None)))))
+
+    def worked(b, months, fytd):
+        if not fytd and min(months) == month and not has_hours(hours, month):
+            return HOURS_PENDING
+        return fmt_count(round(hours_sum(hours, b, months)))
+
+    table.append(line("Total Person Hours Worked", cells(worked), bold=True))
     return table
 
 
 def build_kpis(events, hours, month, today):
     kpis = {}
+    entered = has_hours(hours, month)
     for b in config.BUCKETS:
-        trifr, ltifr = frequency_rates(events, hours, b, month)
+        trifr, ltifr = frequency_rates(events, hours, b, rates_month(hours, month))
         lti_days = [e["day"] for e in events if e["bucket"] == b and e["injury_class"] == "LTI"]
         since = str((today - max(lti_days)).days) if lti_days else "None recorded"
         injuries = sum(1 for e in _in(events, b, {month}) if e["injury_class"])
@@ -230,7 +259,8 @@ def build_kpis(events, hours, month, today):
             ("LTIFR", fmt_rate(ltifr)),
             ("Injuries in month", fmt_count(injuries)),
             ("Days since last LTI", since),
-            ("Person hours in month", fmt_count(round(hours_sum(hours, b, {month})))),
+            ("Person hours in month",
+             fmt_count(round(hours_sum(hours, b, {month}))) if entered else HOURS_NOT_ENTERED),
         ]
     return kpis
 
@@ -606,11 +636,12 @@ def build_ozland_ert(people, roster, shift_types, competencies, today):
 
 
 def build_report(raw, today, generated):
-    month = add_months((today.year, today.month), -1)
+    month = reporting_month(today)
     issues = new_issues()
     events = normalise_events(raw["events"], raw["injuries"], issues)
     hours = normalise_hours(raw["hours"], issues)
-    table = build_table(events, hours, raw["people"], month, issues)     # adds to issues
+    rates_to = rates_month(hours, month)
+    table = build_table(events, hours, raw["people"], month, issues, today)     # adds to issues
     open_actions = build_open_actions(raw["actions"], today, raw["people"])
     # PeopleTray's own two charts, read off its SHEQ home page, win over the API reconstructions.
     web = raw.get("web_charts")
@@ -626,16 +657,17 @@ def build_report(raw, today, generated):
         open_workflows = build_open_workflows(events, raw.get("checklists", []))
     return {
         "month_label": long_label(month),
+        # The reporting month is the current one, so its figures run to today.
+        "month_to_date": _day_label(today) if month == (today.year, today.month) else None,
+        "rates_to": None if rates_to == month else long_label(rates_to),
         "generated": generated,
         "kpis": build_kpis(events, hours, month, today),
         "table": table,
         "table_columns": fy_columns(month)[0],
-        "trend": build_trend(events, hours, month),
+        "trend": build_trend(events, hours, rates_to),
         "event_trend": build_event_trend(events, month),
-        # Reporting runs to today, the current month included (Neil, 2026-10-22); everything
-        # else stops at the last completed month.
-        "reporting": dict(build_reporting(events, raw.get("checklists", []), (today.year, today.month),
-                                          raw["people"]), to_date=_day_label(today)),
+        "reporting": dict(build_reporting(events, raw.get("checklists", []), month, raw["people"]),
+                          to_date=_day_label(today)),
         "injury_analysis": build_injury_analysis(events, month),
         "injury_classes": build_injury_classes(events, month),
         "status": build_status(events, raw["actions"], month, today),

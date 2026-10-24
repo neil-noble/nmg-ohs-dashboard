@@ -3,14 +3,11 @@ from datetime import date
 import periods
 
 
-def test_reporting_month_is_last_completed_month():
-    assert periods.reporting_month(date(2026, 10, 11)) == (2026, 9)
-    assert periods.reporting_month(date(2026, 10, 1)) == (2026, 9)
-    assert periods.reporting_month(date(2026, 11, 1)) == (2026, 10)
-
-
-def test_reporting_month_in_january_is_previous_december():
-    assert periods.reporting_month(date(2027, 1, 15)) == (2026, 12)
+def test_reporting_month_is_the_current_month():
+    assert periods.reporting_month(date(2026, 10, 11)) == (2026, 10)
+    assert periods.reporting_month(date(2026, 10, 1)) == (2026, 10)
+    assert periods.reporting_month(date(2026, 11, 1)) == (2026, 11)
+    assert periods.reporting_month(date(2027, 1, 15)) == (2027, 1)
 
 
 def test_fy_start():

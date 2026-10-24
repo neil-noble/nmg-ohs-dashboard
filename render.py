@@ -5,6 +5,7 @@ from html import escape
 from itertools import cycle
 
 import config
+import metrics
 
 CSS = """
 :root{--navy:#083045;--river:#55848A;--gold:#927128;--pale-gold:#B19045;--sand:#F1DCAA;
@@ -34,6 +35,7 @@ padding:10px 12px 12px;box-shadow:0 1px 2px rgba(0,0,0,.05);min-width:0}
 .v>h2{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--ink)}
 .v>h2 small{font-weight:400;color:var(--muted);font-size:12px}
 .note{color:var(--muted);font-size:11.5px;margin:8px 0 0}
+.kpi-note{grid-column:1/-1;margin:-4px 0 0}
 #notice{grid-column:1/-1;background:var(--sand-tint);border-left:4px solid var(--pale-gold);
 padding:9px 12px;border-radius:3px}
 .kpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
@@ -283,11 +285,24 @@ def _bar(value, longest, colour):
             f"</i><em>{value}</em></div>")
 
 
+def _month_shown(report):
+    to_date = report.get("month_to_date")
+    return f'{report["month_label"]} (to {to_date})' if to_date else report["month_label"]
+
+
+def _rates_note(report):
+    """Said wherever a frequency rate is shown while the reporting month has no hours yet."""
+    if not report.get("rates_to"):
+        return ""
+    return (f'TRIFR and LTIFR run to {report["rates_to"]}: PeopleTray has no person hours for '
+            f'{report["month_label"]} yet (they are entered once the month is over). ')
+
+
 def _header(report):
     return ('<header><div class="bar">'
             "<div><h1>Health &amp; Safety Performance</h1><p>New Murchison Gold Limited</p></div>"
             '<div class="slicers">'
-            f'<div class="slicer"><span>Reporting month</span><b>{escape(report["month_label"])}</b></div>'
+            f'<div class="slicer"><span>Reporting month</span><b>{escape(_month_shown(report))}</b></div>'
             '<div class="slicer"><span>Financial year</span><b>From 1 July</b></div>'
             f'<div class="slicer"><span>Data as at</span><b>{escape(report["generated"])}</b></div>'
             "</div></div></header>")
@@ -319,7 +334,10 @@ def _kpis(report):
             halves += (f'<div><b{size} style="color:{colour}">{escape(value)}</b>'
                        f'<span><i class="dot" style="background:{colour}"></i>{escape(name)}</span></div>')
         cards.append(f'<section class="v kpi"><h2>{escape(label)}</h2><div class="pair">{halves}</div></section>')
-    return f'<div id="kpis" class="kpis">{"".join(cards)}</div>'
+    note = (f'<p class="note kpi-note">{escape(_rates_note(report))}Counts for '
+            f'{escape(report["month_label"])} run to {escape(report["month_to_date"])}.</p>'
+            if report.get("rates_to") and report.get("month_to_date") else "")
+    return f'<div id="kpis" class="kpis">{"".join(cards)}</div>{note}'
 
 
 def _matrix(report, rows, first_heading, columns=None):
@@ -341,7 +359,9 @@ def _matrix(report, rows, first_heading, columns=None):
 def _table(report):
     inner = (_matrix(report, report["table"], "Event", report["table_columns"])
              + '<p class="note">Frequency rates in the FYTD columns are rolling 12-month rates. '
-             "Head count is NMG employees only, at month end.</p>")
+             + escape(_rates_note(report))
+             + "Head count is NMG employees only, at month end (today, in the month to date). "
+             f"{metrics.HOURS_PENDING} = hours not yet entered in PeopleTray.</p>")
     return _visual(7, "Events", inner, "event-table", sub="each month of the financial year, and year to date")
 
 
@@ -360,9 +380,10 @@ def _trends(report):
                       "rolling 12 months. TRIFR counts lost time, restricted work and medically "
                       "treated injuries; LTIFR counts lost time injuries only, so it is never above "
                       "TRIFR. Combined is both areas&rsquo; injuries over both areas&rsquo; hours. "
-                      "Where the two lines are equal they overlap.</p>")
-        charts += _visual(4, f"TRIFR and LTIFR – {area}", chart, f"rate-trend-{area.lower()}",
-                          sub="12 month trend")
+                      "Where the two lines are equal they overlap. "
+                      f"{escape(_rates_note(report))}</p>")
+        sub = f'12 month trend, to {report["rates_to"]}' if report.get("rates_to") else "12 month trend"
+        charts += _visual(4, f"TRIFR and LTIFR – {area}", chart, f"rate-trend-{area.lower()}", sub=sub)
     return f'<div id="rate-trends" class="group">{charts}</div>'
 
 

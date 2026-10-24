@@ -203,7 +203,8 @@ def test_empty_data_renders_dashes_and_na_without_dividing_by_zero():
     table = metrics.build_table([], {}, [], sample.MONTH)
     assert month_and_fytd(row(table, "Total Injuries")) == ["–", "–", "–", "–"]
     assert month_and_fytd(row(table, "Lost Time Injury Freq Rate (LTIFR)")) == ["NA", "NA", "NA", "NA"]
-    assert month_and_fytd(row(table, "Total Person Hours Worked")) == ["–", "–", "–", "–"]
+    # No hours for the reporting month means PeopleTray does not have them yet
+    assert month_and_fytd(row(table, "Total Person Hours Worked")) == ["Pending", "–", "Pending", "–"]
     assert month_and_fytd(row(table, "NMG Head Count")) == ["–", "NA", "–", "NA"]
 
 

@@ -37,32 +37,34 @@ def test_every_section_is_present(page):
 
 
 def test_header_shows_month_and_timestamp(page):
-    assert "September 2026" in page
+    assert "October 2026 (to 11 Oct 2026)" in page
+    assert "TRIFR and LTIFR run to September 2026" in page
     assert "11 Oct 2026, 18:30 AWST" in page
 
 
 def test_table_rows_and_cells(page):
     table = section_of(page, "event-table")
-    assert "<th>Mining</th>" not in table          # bucket headings span Jul, Aug, Sep and FYTD
-    assert re.search(r'colspan="4"[^>]*>Mining<', table)
-    assert re.search(r'colspan="4"[^>]*>Exploration<', table)
-    assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>FYTD</th>") == 2
+    assert "<th>Mining</th>" not in table          # bucket headings span Jul to Oct and FYTD
+    assert re.search(r'colspan="5"[^>]*>Mining<', table)
+    assert re.search(r'colspan="5"[^>]*>Exploration<', table)
+    assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>FYTD</th>") == 2
     assert re.search(r"<th[^>]*>Total Person Hours Worked</th>(<td>[^<]*</td>){2}<td>30,500</td>"
-                     r"<td>90,500</td>(<td>[^<]*</td>){2}<td>3,000</td><td>6,500</td>", table)
-    assert re.search(r"<th[^>]*>Lost Time Injury Freq Rate \(LTIFR\)</th><td>NA</td><td>NA</td>"
-                     r"<td>NA</td><td>0.00</td><td>NA</td><td>NA</td><td>NA</td><td>64.52</td>", table)
+                     r"<td>Pending</td><td>90,500</td>(<td>[^<]*</td>){2}<td>3,000</td>"
+                     r"<td>Pending</td><td>6,500</td>", table)
+    assert re.search(r"<th[^>]*>Lost Time Injury Freq Rate \(LTIFR\)</th>(<td>NA</td>){4}"
+                     r"<td>0.00</td>(<td>NA</td>){4}<td>64.52</td>", table)
 
 
 def test_kpi_tiles(page):
     assert page.count('class="v kpi"') == 5                # one card per measure, both buckets on it
     assert "Days since last LTI" in page and ">58<" in page
-    assert ">64.52<" in page and ">30,500<" in page
+    assert ">64.52<" in page and ">Not yet entered<" in page
 
 
 def test_charts_are_inline_svg_with_month_labels(page):
     assert page.count("<svg") == 10   # rates for Mining, Exploration and combined, event bars, two
                                       # donuts, workflow pie, action bars, reporting for each area
-    assert ">Oct 25<" in page and ">Sep 26<" in page
+    assert ">Nov 25<" in page and ">Sep 26<" in page and ">Oct 26<" in page
     assert config.NAVY in page and config.GOLD in page
     assert "NaN" not in page and ">None<" not in page
 

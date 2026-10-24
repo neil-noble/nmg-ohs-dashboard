@@ -54,8 +54,9 @@ def _all_pages(get, path, params):
 
 
 def fetch_all(today, get=peopletray.get):
-    # The oldest trend point is 11 months back and needs its own 12 months behind it.
-    first = add_months(reporting_month(today), -22)
+    # The rate trend can end a month before the reporting month (its hours not yet entered); its
+    # oldest point is 11 months before that and needs its own 12 months behind it.
+    first = add_months(reporting_month(today), -23)
     window = {"fromDate": f"{first[0]}-{first[1]:02d}-01",
               "toDate": (today + timedelta(days=1)).isoformat()}
     # Actions and checklists are fetched in full: the overdue history ranks actionees over

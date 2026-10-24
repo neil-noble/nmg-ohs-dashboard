@@ -16,20 +16,37 @@ def test_report_keys(report):
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
                            "charts_source", "open_incidents", "table_columns", "close_out",
-                           "ozland_ert", "reporting"}
-    assert report["month_label"] == "September 2026"
+                           "ozland_ert", "reporting", "month_to_date", "rates_to"}
+    assert report["month_label"] == "October 2026"
+    assert report["month_to_date"] == "11 Oct 2026"
+    assert report["rates_to"] == "September 2026"      # the sample has no October hours
     assert report["generated"] == "11 Oct 2026, 18:30 AWST"
     assert report["unmapped"] == ["Shutdown Crew"]
     assert report["undated"] == 0
 
 
 def test_kpis(report):
+    # October to date: no October injuries or hours yet, so the rates hold at September's.
     assert report["kpis"][config.MINING] == [
-        ("TRIFR", "0.00"), ("LTIFR", "0.00"), ("Injuries in month", "2"),
-        ("Days since last LTI", "None recorded"), ("Person hours in month", "30,500")]
+        ("TRIFR", "0.00"), ("LTIFR", "0.00"), ("Injuries in month", "–"),
+        ("Days since last LTI", "None recorded"), ("Person hours in month", "Not yet entered")]
     assert report["kpis"][config.EXPLORATION] == [
         ("TRIFR", "64.52"), ("LTIFR", "64.52"), ("Injuries in month", "–"),
-        ("Days since last LTI", "58"), ("Person hours in month", "3,000")]
+        ("Days since last LTI", "58"), ("Person hours in month", "Not yet entered")]
+
+
+def test_kpis_use_the_month_once_its_hours_are_in():
+    raw = dict(sample.RAW, hours=sample.RAW["hours"] + [sample.hours("CPO - Ozland", 2026, 10, 1000.0)])
+    report = metrics.build_report(raw, sample.TODAY, "x")
+    assert report["rates_to"] is None
+    assert dict(report["kpis"][config.MINING])["Person hours in month"] == "1,000"
+    assert report["trend"]["labels"][-1] == "Oct 26"
+
+
+def test_rates_month_steps_back_to_the_last_month_with_hours():
+    hours = {(config.MINING, (2026, 8)): 10.0}
+    assert metrics.rates_month(hours, (2026, 10)) == (2026, 8)
+    assert metrics.rates_month({}, (2026, 10)) == (2026, 10)
 
 
 def test_trend_has_12_labelled_points(report):
@@ -54,12 +71,13 @@ def test_trend_point_with_no_hours_is_none():
 
 def test_event_trend_groups(report):
     trend = report["event_trend"]
-    assert trend["labels"] == report["trend"]["labels"]
+    # Events run to the month to date; the rate trend stops at the last month with hours.
+    assert trend["labels"] == report["trend"]["labels"][1:] + ["Oct 26"]
     assert [name for name, _ in trend["series"]] == list(config.TREND_GROUPS)
-    september = {name: values[-1] for name, values in trend["series"]}
+    september = {name: values[-2] for name, values in trend["series"]}
     assert september == {"Injury": 2, "Near Miss": 2, "Property Damage / Loss": 1,
                          "Procedural Compliance": 0, "Production Loss": 0, "Other": 1}
-    august = {name: values[-2] for name, values in trend["series"]}
+    august = {name: values[-3] for name, values in trend["series"]}
     assert august["Injury"] == 1 and august["Other"] == 1      # the LTI, and the Security event
 
 
@@ -82,7 +100,7 @@ def test_injury_analysis_groups_the_long_tail():
 
 def test_status(report):
     assert report["status"] == {"events_open": 1, "events_closed": 9, "actions_open": 2,
-                                "actions_overdue": 1, "actions_closed_month": 1}
+                                "actions_overdue": 1, "actions_closed_month": 0}
 
 
 def test_empty_feeds_build_a_report():

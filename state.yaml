@@ -9,7 +9,7 @@ repos: {source: neil-noble/nmg-ohs-dashboard (private, branch master), site: nei
 pages_url: https://neil-noble.github.io/nmg-ohs-site/
 decisions:
   data_source: live PeopleTray only; screenshot spreadsheet is layout template (its Sept column was mostly Aug data)
-  reporting_month: last completed month (AWST), FYTD from 1 Jul, rebuild daily
+  reporting_month: (2026-10-25, was last completed month) Neil - CURRENT month to date (AWST), FYTD from 1 Jul; header 'October 2026 (to 25 Oct 2026)'. Exposure hours are entered once a month, so until the month's hours exist: KPI hours 'Not yet entered', table cell 'Pending', TRIFR/LTIFR + rate trend hold at metrics.rates_month (last month with hours) with a note (Neil chose 'hold rates' over roster estimates). Counts, head count (as at today), event trend, status run to today. Switches over automatically when hours appear
   mining: [CPO - *, Contractors - Local, Contractors - Other]
   exploration: [GG - *, Drilling Contractors]
   excluded: [Flight/Accommodation ONLY, PER - *]
