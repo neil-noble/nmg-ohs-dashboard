@@ -2,10 +2,11 @@ name: NMG OHS Dashboard
 
 on:
   schedule:
-    # Every 5 minutes (Neil, 2026-10-22) comes from cron-job.org job 8705425, which starts this
-    # workflow with a token that can do nothing else. GitHub's own schedule ran a */5 cron only
-    # 3 times in 14 hours, so it is kept just as an hourly backup.
-    - cron: '17 * * * *'
+    # The real schedule is on cron-job.org, which starts this workflow with a token that can do
+    # nothing else (Neil, 2026-10-26): job 8705425 every 5 minutes 05:00-16:55 AWST, and a second
+    # job hourly 17:00-04:00. GitHub's own schedule ran a */5 cron only 3 times in 14 hours, so
+    # it is kept just as a 3-hourly backup.
+    - cron: '17 */3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -85,6 +86,15 @@ jobs:
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/site_key -o IdentitiesOnly=yes"
           git clone git@github.com:neil-noble/nmg-ohs-site.git /tmp/nmg-ohs-site
+          # Nothing to publish if only the "Data as at" time moved (Neil, 2026-10-26): most
+          # 5-minute builds change nothing else, and each push costs the site a Pages run.
+          same() { cmp -s <(sed 's|Data as at</span><b>[^<]*|Data as at</span><b>|' "$1") \
+                          <(sed 's|Data as at</span><b>[^<]*|Data as at</span><b>|' "$2"); }
+          if same docs/index.html /tmp/nmg-ohs-site/index.html \
+             && same docs/ozland.html /tmp/nmg-ohs-site/ozland.html; then
+            echo "Dashboard unchanged since the last publish - not pushing."
+            exit 0
+          fi
           cp docs/index.html /tmp/nmg-ohs-site/index.html
           # The ERT dashboard reads its Ozland chart from this page.
           cp docs/ozland.html /tmp/nmg-ohs-site/ozland.html
