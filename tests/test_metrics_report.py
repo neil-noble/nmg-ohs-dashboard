@@ -162,7 +162,7 @@ def test_open_workflows_count_every_open_event_whatever_its_date():
               sample.event(2, "2025-01-05", "CPO - Ozland", "Injury", "No Treatment Required", status="Open Workflow"),
               sample.event(3, "2026-10-06", "GG - Exploration", "Misfire", status="Open Workflow"),
               sample.event(4, "2026-10-06", "CPO - Ozland", "Misfire"),
-              sample.event(5, "2026-10-06", "PER - Finance", "Misfire", status="Open Workflow")]
+              sample.event(5, "2026-10-06", "Other Site - Finance", "Misfire", status="Open Workflow")]
     raw = dict(sample.RAW, events=events, injuries=[], checklists=[])
     assert metrics.build_report(raw, sample.TODAY, "x")["open_workflows"] == [("Safety Events", 3)]
 
@@ -262,7 +262,7 @@ def test_open_incidents_keep_the_most_overdue_and_leave_out_other_sites():
     events = [sample.event(n, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow",
                            target=f"2026-10-{n:02d}T00:00:00") for n in range(1, 21)]
     events += [sample.event(30, "2026-09-01", "CPO - Ozland", "Near Miss", status="Open Workflow"),
-               sample.event(31, "2026-09-01", "PER - Management", "Near Miss", status="Open Workflow",
+               sample.event(31, "2026-09-01", "Other Site - Management", "Near Miss", status="Open Workflow",
                             target="2026-01-01T00:00:00"),
                sample.event(32, "2026-09-01", "CPO - Ozland", "Near Miss",
                             target="2026-01-01T00:00:00")]
@@ -307,13 +307,13 @@ def test_near_miss_and_hazard_reporting():
     assert list(report["series"]) == [config.MINING, config.EXPLORATION]
     mining, exploration = (dict(report["series"][b]) for b in (config.MINING, config.EXPLORATION))
     assert list(mining) == ["Near misses", "Hazard reports"]
-    assert mining["Hazard reports"][-4:] == [1, 0, 2, 1]  # Jul to Oct: discarded and Perth left out
+    assert mining["Hazard reports"][-4:] == [1, 0, 3, 1]  # Jul to Oct: discarded left out, Perth counts as Mining
     assert exploration["Hazard reports"][-4:] == [0, 1, 0, 0]
     assert sum(mining["Near misses"]) == 2 and sum(exploration["Near misses"]) == 0
     table = {row["label"]: row["cells"] for row in report["table"]}
     assert report["columns"] == ["Jul", "Aug", "Sep", "Oct", "FYTD"]   # every month from 1 July to today
     assert table["Near misses"] == ["–", "–", "2", "–", "2", "–", "–", "–", "–", "–"]
-    assert table["Hazard reports"] == ["1", "–", "2", "1", "4", "–", "1", "–", "–", "1"]
+    assert table["Hazard reports"] == ["1", "–", "3", "1", "5", "–", "1", "–", "–", "1"]
 
 
 def test_reports_by_company_follow_the_reporter():

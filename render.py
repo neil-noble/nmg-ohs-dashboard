@@ -689,9 +689,9 @@ def _sheq_actions(report):
 
 def _footer():
     return ("<footer><p><strong>Source:</strong> PeopleTray. Rebuilt daily.</p>"
-            "<p><strong>Mining:</strong> all CPO workgroups, Contractors &ndash; Local and "
+            "<p><strong>Mining:</strong> all CPO and Perth (PER) workgroups, Contractors &ndash; Local and "
             "Contractors &ndash; Other. <strong>Exploration:</strong> all GG workgroups and "
-            "Drilling Contractors. Perth office and Flight/Accommodation Only are excluded.</p>"
+            "Drilling Contractors. Flight/Accommodation Only is excluded.</p>"
             "<p><strong>Recordable injuries</strong> are lost time, restricted work and medically "
             "treated injuries. Non work related and pre-existing conditions are not counted.</p></footer>")
 

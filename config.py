@@ -10,11 +10,12 @@ BUCKETS = (MINING, EXPLORATION)
 COMBINED = "Combined"
 EXCLUDED, UNMAPPED = "excluded", "unmapped"
 
-# (result, workgroup prefixes, exact workgroup names). Decided by Neil 2026-10-11.
+# (result, workgroup prefixes, exact workgroup names). Decided by Neil 2026-10-11;
+# Perth (PER - *) moved from excluded to Mining 2026-10-28.
 _BUCKET_RULES = (
-    (MINING, ("CPO - ",), ("Contractors - Local", "Contractors - Other")),
+    (MINING, ("CPO - ", "PER - "), ("Contractors - Local", "Contractors - Other")),
     (EXPLORATION, ("GG - ",), ("Drilling Contractors",)),
-    (EXCLUDED, ("PER - ",), ("Flight/Accommodation ONLY",)),
+    (EXCLUDED, (), ("Flight/Accommodation ONLY",)),
 )
 
 

@@ -10,10 +10,10 @@ pages_url: https://neil-noble.github.io/nmg-ohs-site/
 decisions:
   data_source: live PeopleTray only; screenshot spreadsheet is layout template (its Sept column was mostly Aug data)
   reporting_month: (2026-10-25, was last completed month) Neil - CURRENT month to date (AWST), FYTD from 1 Jul; header 'October 2026 (to 25 Oct 2026)'. Exposure hours are entered once a month, so until the month's hours exist: KPI hours 'Not yet entered', table cell 'Pending', TRIFR/LTIFR + rate trend hold at metrics.rates_month (last month with hours) with a note (Neil chose 'hold rates' over roster estimates). Counts, head count (as at today), event trend, status run to today. Switches over automatically when hours appear
-  mining: [CPO - *, Contractors - Local, Contractors - Other]
+  mining: [CPO - *, PER - *, Contractors - Local, Contractors - Other]
   exploration: [GG - *, Drilling Contractors]
-  excluded: [Flight/Accommodation ONLY, PER - *]
-  head_count: employer == New Murchison Gold Ltd, not Contractor type, Perth excluded, as at month end
+  excluded: [Flight/Accommodation ONLY]   # PER - * moved to Mining 2026-10-28 (Neil)
+  head_count: employer == New Murchison Gold Ltd, not Contractor type, Perth INCLUDED in Mining since 2026-10-28, as at month end
   panels: [kpi_tiles, event_table, trifr_ltifr_trend, event_trend_by_type, injury_analysis, open_events_actions]
   open_incidents: (2026-10-19) open Mining/Exploration events, most overdue vs targetCloseDate first, top 15 (config.OPEN_INCIDENTS_SHOWN); completion = currentStep; no free-text description (names people, BAC breaches)
   contractor: (2026-10-19) people-feed employer - actions by assigneeId then name; incidents by the reportedTo person's employer (Neil chose); events.company is always null

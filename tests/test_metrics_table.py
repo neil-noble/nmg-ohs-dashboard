@@ -85,9 +85,9 @@ def test_injury_type_can_come_from_the_injury_list():
 
 def test_hours_by_bucket_and_month(data):
     _, hours, _ = data
-    assert hours[(config.MINING, (2026, 9))] == 30500.0
+    assert hours[(config.MINING, (2026, 9))] == 30540.0   # includes PER - Management
     assert hours[(config.EXPLORATION, (2026, 9))] == 3000.0
-    assert metrics.hours_sum(hours, config.MINING, {(2026, 7), (2026, 8), (2026, 9)}) == 90500.0
+    assert metrics.hours_sum(hours, config.MINING, {(2026, 7), (2026, 8), (2026, 9)}) == 90540.0
 
 
 def test_rate_and_formatting():
@@ -110,7 +110,7 @@ def test_frequency_rates_use_rolling_12_months(data):
 
 def test_head_count_is_nmg_employees_at_month_end():
     as_at = date(2026, 9, 30)
-    assert metrics.head_count(sample.PEOPLE, config.MINING, as_at) == 2
+    assert metrics.head_count(sample.PEOPLE, config.MINING, as_at) == 3   # PER - Finance counts
     assert metrics.head_count(sample.PEOPLE, config.EXPLORATION, as_at) == 1
 
 
@@ -140,8 +140,8 @@ def test_table_for_september_2026(data):
     assert month_and_fytd(row(table, "Property Damage / Loss")) == ["1", "1", "–", "–"]
     assert month_and_fytd(row(table, "Security Incident / Violence")) == ["–", "1", "–", "1"]
     assert month_and_fytd(row(table, "Misfire")) == ["1", "1", "–", "–"]
-    assert month_and_fytd(row(table, "NMG Head Count")) == ["2", "NA", "1", "NA"]
-    assert month_and_fytd(row(table, "Total Person Hours Worked")) == ["30,500", "90,500", "3,000", "6,500"]
+    assert month_and_fytd(row(table, "NMG Head Count")) == ["3", "NA", "1", "NA"]
+    assert month_and_fytd(row(table, "Total Person Hours Worked")) == ["30,540", "90,540", "3,000", "6,500"]
 
 
 def test_table_has_every_month_of_the_financial_year(data):

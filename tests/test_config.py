@@ -12,7 +12,7 @@ import config
     ("GG - Exploration Contractors", config.EXPLORATION),
     ("Drilling Contractors", config.EXPLORATION),
     ("Flight/Accommodation ONLY", config.EXCLUDED),
-    ("PER - Finance", config.EXCLUDED),
+    ("PER - Finance", config.MINING),
     ("  CPO - Geology  ", config.MINING),
     ("Shutdown Crew", config.UNMAPPED),
     ("", config.UNMAPPED),

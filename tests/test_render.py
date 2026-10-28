@@ -48,8 +48,8 @@ def test_table_rows_and_cells(page):
     assert re.search(r'colspan="5"[^>]*>Mining<', table)
     assert re.search(r'colspan="5"[^>]*>Exploration<', table)
     assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>FYTD</th>") == 2
-    assert re.search(r"<th[^>]*>Total Person Hours Worked</th>(<td>[^<]*</td>){2}<td>30,500</td>"
-                     r"<td>Pending</td><td>90,500</td>(<td>[^<]*</td>){2}<td>3,000</td>"
+    assert re.search(r"<th[^>]*>Total Person Hours Worked</th>(<td>[^<]*</td>){2}<td>30,540</td>"
+                     r"<td>Pending</td><td>90,540</td>(<td>[^<]*</td>){2}<td>3,000</td>"
                      r"<td>Pending</td><td>6,500</td>", table)
     assert re.search(r"<th[^>]*>Lost Time Injury Freq Rate \(LTIFR\)</th>(<td>NA</td>){4}"
                      r"<td>0.00</td>(<td>NA</td>){4}<td>64.52</td>", table)
@@ -268,7 +268,7 @@ def test_near_miss_and_hazard_reporting_visuals(page):
     table = section_of(page, "reporting-table")
     assert re.search(r'colspan="5"[^>]*>Mining<', table) and re.search(r'colspan="5"[^>]*>Exploration<', table)
     assert table.count("<th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>FYTD</th>") == 3  # 2 areas + company
-    assert ("<th scope=\"row\">Hazard reports</th><td>1</td><td>–</td><td>2</td><td>1</td><td>4</td>"
+    assert ("<th scope=\"row\">Hazard reports</th><td>1</td><td>–</td><td>3</td><td>1</td><td>5</td>"
             "<td>–</td><td>1</td><td>–</td><td>–</td><td>1</td>") in table
     assert "to 11 Oct 2026" in table
     # By company sits under the area table, inside the same card.
