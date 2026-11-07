@@ -48,7 +48,8 @@ jobs:
           echo "$EOM_DEPLOY_KEY" > ~/.ssh/eom_key
           chmod 600 ~/.ssh/eom_key
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
-          GIT_SSH_COMMAND="ssh -i ~/.ssh/eom_key -o IdentitiesOnly=yes" git clone --quiet --depth 1 --filter=blob:none --sparse git@github.com:neil-noble/nmg-eom.git /tmp/nmg-eom
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/eom_key -o IdentitiesOnly=yes"
+          git clone --quiet --depth 1 --filter=blob:none --sparse git@github.com:neil-noble/nmg-eom.git /tmp/nmg-eom
           git -C /tmp/nmg-eom sparse-checkout set --no-cone /data/history.yaml
           cp /tmp/nmg-eom/data/history.yaml .eom/history.yaml
           rm -f ~/.ssh/eom_key
