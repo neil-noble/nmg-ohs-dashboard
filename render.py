@@ -294,8 +294,11 @@ def _rates_note(report):
     """Said wherever a frequency rate is shown while the reporting month has no hours yet."""
     if not report.get("rates_to"):
         return ""
+    eom = report.get("hours_from_eom") or []
+    source = (f"{' and '.join(eom)} person hours are from PeopleTray's End of Month Report, "
+              'as the exposure hours are not entered yet. ') if eom else ""
     return (f'TRIFR and LTIFR run to {report["rates_to"]}: PeopleTray has no person hours for '
-            f'{report["month_label"]} yet (they are entered once the month is over). ')
+            f'{report["month_label"]} yet (they are entered once the month is over). {source}')
 
 
 def _header(report):

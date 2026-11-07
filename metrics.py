@@ -640,6 +640,14 @@ def build_report(raw, today, generated):
     issues = new_issues()
     events = normalise_events(raw["events"], raw["injuries"], issues)
     hours = normalise_hours(raw["hours"], issues)
+    # A finished month the exposure hours feed does not have yet takes its hours from the web
+    # End of Month Report (eomhours.py); the feed wins once it has the month.
+    from_eom = []
+    for ym, areas in sorted((raw.get("eom_hours") or {}).items()):
+        if not has_hours(hours, tuple(ym)):
+            for b in config.BUCKETS:
+                hours[(b, tuple(ym))] = float(areas.get(b, 0.0))
+            from_eom.append(long_label(tuple(ym)))
     rates_to = rates_month(hours, month)
     table = build_table(events, hours, raw["people"], month, issues, today)     # adds to issues
     open_actions = build_open_actions(raw["actions"], today, raw["people"])
@@ -660,6 +668,7 @@ def build_report(raw, today, generated):
         # The reporting month is the current one, so its figures run to today.
         "month_to_date": _day_label(today) if month == (today.year, today.month) else None,
         "rates_to": None if rates_to == month else long_label(rates_to),
+        "hours_from_eom": from_eom,
         "generated": generated,
         "kpis": build_kpis(events, hours, month, today),
         "table": table,
