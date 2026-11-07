@@ -33,8 +33,25 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m pip install --quiet pytest
+          python -m pip install --quiet pytest pyyaml==6.0.2
           python -m pytest -q
+
+      # The rates match the EOM report (Neil, 2026-11-07): the months it has sent use the hours
+      # and injuries in the private nmg-eom repo's data/history.yaml, read with a read-only
+      # deploy key. If it cannot be read the build carries on with PeopleTray's own figures.
+      - name: Fetch the EOM report's history
+        continue-on-error: true
+        env:
+          EOM_DEPLOY_KEY: ${{ secrets.EOM_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh .eom
+          echo "$EOM_DEPLOY_KEY" > ~/.ssh/eom_key
+          chmod 600 ~/.ssh/eom_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/eom_key -o IdentitiesOnly=yes" git clone --quiet --depth 1 --filter=blob:none --sparse git@github.com:neil-noble/nmg-eom.git /tmp/nmg-eom
+          git -C /tmp/nmg-eom sparse-checkout set --no-cone /data/history.yaml
+          cp /tmp/nmg-eom/data/history.yaml .eom/history.yaml
+          rm -f ~/.ssh/eom_key
 
       # The SHEQ Actions and Open Workflows charts, and the incidents' close dates, are read off
       # PeopleTray's web app, which needs a browser sign-in. That happens at most every 30
@@ -63,6 +80,7 @@ jobs:
         run: python generate_dashboard.py
         env:
           WEB_CACHE: .webcache/web.json
+          EOM_HISTORY: .eom/history.yaml
           PT_API_KEY: ${{ secrets.PT_API_KEY }}
           PT_WEB_USERNAME: ${{ secrets.PT_WEB_USERNAME }}
           PT_WEB_PASSWORD: ${{ secrets.PT_WEB_PASSWORD }}

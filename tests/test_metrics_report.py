@@ -16,7 +16,7 @@ def test_report_keys(report):
                            "unclassified", "injury_classes",
                            "open_actions", "open_workflows", "sheq_actions",
                            "charts_source", "open_incidents", "table_columns", "close_out",
-                           "ozland_ert", "reporting", "month_to_date", "rates_to", "hours_from_eom"}
+                           "ozland_ert", "reporting", "month_to_date", "rates_to", "hours_from_eom", "eom_sent_to"}
     assert report["month_label"] == "October 2026"
     assert report["month_to_date"] == "11 Oct 2026"
     assert report["rates_to"] == "September 2026"      # the sample has no October hours

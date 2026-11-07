@@ -88,3 +88,39 @@ def test_the_note_names_the_report_months():
     note = render._rates_note({"rates_to": "October 2026", "month_label": "November 2026",
                                "hours_from_eom": ["October 2026"]})
     assert "October 2026 person hours are from PeopleTray's End of Month Report" in note
+
+
+def _history():
+    sent = {}
+    for y, m in [(2025, 10), (2025, 11), (2025, 12), (2026, 1), (2026, 2), (2026, 3), (2026, 4),
+                 (2026, 5), (2026, 6), (2026, 7), (2026, 8), (2026, 9), (2026, 10)]:
+        sent[(y, m)] = {"hours": {"Mining": 30000.0, "Exploration": 4000.0},
+                        "injuries": {"Mining": {"recordable": 0, "lti": 0},
+                                     "Exploration": {"recordable": 0, "lti": 0}},
+                        "points": {"Mining": (1.5, 0.5), "Exploration": (2.5, 0.0)}}
+    sent[(2026, 10)]["injuries"]["Mining"] = {"recordable": 3, "lti": 1}
+    return sent
+
+
+def test_rates_match_the_eom_report_for_sent_months():
+    raw = dict(sample.RAW, eom_history=_history())
+    report = metrics.build_report(raw, date(2026, 11, 7), "now")
+    assert report["rates_to"] == "October 2026" and report["eom_sent_to"] == "October 2026"
+    kpis = dict(report["kpis"]["Mining"])
+    # 3 recordables, 1 LTI over 12 x 30,000 hours, whatever PeopleTray's events say
+    assert kpis["TRIFR"] == "8.33" and kpis["LTIFR"] == "2.78"
+    assert report["trend"]["trifr"]["Mining"][-1] == 1.5      # the stored point, as sent
+    assert report["trend"]["ltifr"]["Exploration"][-1] == 0.0
+
+
+def test_eom_history_is_read_and_a_bad_file_is_not_fatal(tmp_path):
+    good = tmp_path / "history.yaml"
+    good.write_text("months:\n  2026-10:\n    hours: {Mining: 39126, Exploration: 6918}\n"
+                    "    injuries: {Mining: {recordable: 1, lti: 0}}\n"
+                    "    points: {trifr: {Mining: 5.41}, ltifr: {Mining: 0.0}}\n", encoding="utf-8")
+    months, error = generate_dashboard.load_eom_history(good)
+    assert error is None
+    assert months[(2026, 10)]["hours"]["Exploration"] == 6918.0
+    assert months[(2026, 10)]["points"]["Mining"] == (5.41, 0.0)
+    assert generate_dashboard.load_eom_history(tmp_path / "missing.yaml")[0] == {}
+    assert generate_dashboard.load_eom_history(None) == ({}, None)

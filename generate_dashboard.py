@@ -92,6 +92,9 @@ def read_eom_hours(raw, today, cache=None, now=None, fetcher=eomhours.fetch_eom_
     now = now or datetime.now(timezone.utc)
     month = periods.reporting_month(today)
     feed = metrics.normalise_hours(raw["hours"], metrics.new_issues())
+    for ym, record in (raw.get("eom_history") or {}).items():     # sent months need no download
+        for area, value in record["hours"].items():
+            feed[(area, ym)] = value
     wanted = eomhours.missing_months(feed, month)
     if cache:
         cached = load_eom_cache(cache, now, month)
@@ -107,6 +110,30 @@ def read_eom_hours(raw, today, cache=None, now=None, fetcher=eomhours.fetch_eom_
             "fetched_at": now.isoformat(), "month": list(month),
             "hours": {f"{y}-{m:02d}": v for (y, m), v in found.items()}}), encoding="utf-8")
     return found, None
+
+
+def load_eom_history(path):
+    """(months the EOM report has sent, error): {(year, month): {"hours": {area: h},
+    "injuries": {area: {"recordable": n, "lti": n}}}} from the NMG EOM project's
+    data/history.yaml. Without it the rates fall back to PeopleTray's own figures."""
+    if not path:
+        return {}, None
+    try:
+        import yaml
+
+        months = yaml.safe_load(Path(path).read_text(encoding="utf-8"))["months"]
+        out = {}
+        for key, record in months.items():
+            year, month = (int(x) for x in str(key).split("-"))
+            out[(year, month)] = {"hours": {a: float(h) for a, h in record["hours"].items()},
+                                  "injuries": {a: {k: int(v) for k, v in i.items()}
+                                               for a, i in (record.get("injuries") or {}).items()},
+                                  "points": {a: (float(p["trifr"][a]), float(p["ltifr"][a]))
+                                             for p in [record.get("points") or {}]
+                                             for a in (p.get("trifr") or {}) if a in (p.get("ltifr") or {})}}
+        return out, None
+    except Exception as error:   # a missing or changed file must not stop the dashboard
+        return {}, f"EOM history not read ({type(error).__name__})"
 
 
 def warnings(report, web_error=None, eom_error=None):
@@ -133,6 +160,9 @@ def main():
     today = periods.today_perth()
     raw = fetch.fetch_all(today)
     raw["web_charts"], raw["web_error"] = read_web_charts(cache=os.environ.get("WEB_CACHE"))
+    raw["eom_history"], history_error = load_eom_history(os.environ.get("EOM_HISTORY"))
+    if history_error:
+        print(f"::warning::{history_error}; the rates use PeopleTray's own hours and injuries")
     raw["eom_hours"], eom_error = read_eom_hours(raw, today, cache=_eom_cache_path(os.environ.get("WEB_CACHE")))
     report = build(raw, today, periods.now_label())
     print(f"Built {OUTPUT} for {report['month_label']} (charts from {report['charts_source']})")

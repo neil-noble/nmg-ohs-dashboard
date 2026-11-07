@@ -139,15 +139,27 @@ def fmt_rate(r):
     return "NA" if r is None else f"{r:.2f}"
 
 
+class Hours(dict):
+    """Person hours by (bucket, month), plus `frozen`: the injury counts the EOM report sent for
+    the months it has frozen, {(bucket, month): {"recordable": n, "lti": n}}."""
+    frozen = {}
+    points = {}       # (bucket, month) -> (TRIFR, LTIFR) exactly as the EOM report sent them
+
+
 def frequency_rates(events, hours, bucket, month):
     """Rolling 12-month TRIFR and LTIFR for one area, or for both when bucket is COMBINED: both
-    areas' injuries over both areas' hours, not an average of the two rates."""
+    areas' injuries over both areas' hours, not an average of the two rates. A month the EOM
+    report has frozen counts the injuries it reported (Neil, 2026-11-07: match the EOM report);
+    any later month counts PeopleTray's events."""
     window = set(rolling_12(month))
     areas = config.BUCKETS if bucket == config.COMBINED else (bucket,)
-    in_window = [e for b in areas for e in _in(events, b, window)]
+    frozen = getattr(hours, "frozen", {})
+    live = [e for b in areas for e in _in(events, b, window) if (b, e["ym"]) not in frozen]
     worked = sum(hours_sum(hours, b, window) for b in areas)
-    recordable = sum(1 for e in in_window if e["injury_class"] in config.RECORDABLE)
-    lost_time = sum(1 for e in in_window if e["injury_class"] == "LTI")
+    sent = [frozen[(b, m)] for b in areas for m in window if (b, m) in frozen]
+    recordable = (sum(1 for e in live if e["injury_class"] in config.RECORDABLE)
+                  + sum(s.get("recordable", 0) for s in sent))
+    lost_time = sum(1 for e in live if e["injury_class"] == "LTI") + sum(s.get("lti", 0) for s in sent)
     return rate(recordable, worked), rate(lost_time, worked)
 
 
@@ -272,7 +284,8 @@ def build_trend(events, hours, month):
              "ltifr": {b: [] for b in config.BUCKETS + (config.COMBINED,)}}
     for point in points:
         for b in config.BUCKETS + (config.COMBINED,):
-            trifr, ltifr = frequency_rates(events, hours, b, point)
+            sent = getattr(hours, "points", {}).get((b, point))
+            trifr, ltifr = sent if sent else frequency_rates(events, hours, b, point)
             trend["trifr"][b].append(trifr)
             trend["ltifr"][b].append(ltifr)
     return trend
@@ -648,6 +661,17 @@ def build_report(raw, today, generated):
             for b in config.BUCKETS:
                 hours[(b, tuple(ym))] = float(areas.get(b, 0.0))
             from_eom.append(long_label(tuple(ym)))
+    # The months the EOM report has sent use its hours and injuries, so the rates match it.
+    hours = Hours(hours)
+    hours.frozen, hours.points = {}, {}
+    sent = sorted((raw.get("eom_history") or {}).items())
+    for ym, record in sent:
+        for b in config.BUCKETS:
+            if b in record.get("points", {}):
+                hours.points[(b, tuple(ym))] = record["points"][b]
+            hours[(b, tuple(ym))] = float(record["hours"].get(b, 0.0))
+            hours.frozen[(b, tuple(ym))] = dict(record["injuries"].get(b, {}))
+    from_eom = [label for label in from_eom if label not in {long_label(tuple(ym)) for ym, _ in sent}]
     rates_to = rates_month(hours, month)
     table = build_table(events, hours, raw["people"], month, issues, today)     # adds to issues
     open_actions = build_open_actions(raw["actions"], today, raw["people"])
@@ -669,6 +693,7 @@ def build_report(raw, today, generated):
         "month_to_date": _day_label(today) if month == (today.year, today.month) else None,
         "rates_to": None if rates_to == month else long_label(rates_to),
         "hours_from_eom": from_eom,
+        "eom_sent_to": long_label(tuple(sent[-1][0])) if sent else None,
         "generated": generated,
         "kpis": build_kpis(events, hours, month, today),
         "table": table,
