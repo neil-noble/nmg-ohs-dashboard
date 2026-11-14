@@ -33,7 +33,7 @@ REQUIRED_KEYS = {
     "people": ("id", "employeeId", "firstName", "lastName", "workGroup", "workRoles", "employer",
                "emplpyeeType", "dateCommenced", "dateCeased"),
     "roster": ("personId", "rosterDate", "shiftTypeId"),
-    "shifttypes": ("id", "isDayshift", "isNightshift"),
+    "shifttypes": ("id", "isDayshift", "isNightshift", "isOffsite"),
     "competencies": ("employeeId", "workRole", "competencyName", "competencyStatus",
                      "competencyIssueDate", "competencyExpiryDate"),
 }

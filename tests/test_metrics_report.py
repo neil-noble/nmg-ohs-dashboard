@@ -391,3 +391,14 @@ def test_nmg_and_ozland_always_have_a_row_in_reports_by_company():
     rows = metrics.build_report(raw, sample.TODAY, "x")["reporting"]["by_company"]
     assert [group["company"] for group in rows] == ["New Murchison Gold Ltd", "Ozland Drill and Blast"]
     assert all(cells == ["–"] * 5 for group in rows for _, cells in group["rows"])
+
+
+def test_an_off_site_day_shift_is_never_a_day_shift():
+    # Neil, 2026-11-14: Training - Offsite, Working from Home, Perth Office, Day in Lieu (PER) and
+    # FOA - PER are flagged isDayshift by PeopleTray though the person is not on site.
+    people = [sample.person("CPO - Ozland", employer="Ozland Drill and Blast", kind="Contractor", pid=1,
+                            roles=("ERT Member",))]
+    comps = [sample.competency("E1", name) for name in sample.ALL_SIX]
+    roster = [sample.rostered(1, "2026-10-08", sample.DAY), sample.rostered(1, "2026-10-09", sample.OFFSITE_DAY)]
+    oz = metrics.build_ozland_ert(people, roster, sample.SHIFT_TYPES, comps, sample.TODAY)
+    assert [d["day_shift"] for d in oz["days"]] == [1, 0]

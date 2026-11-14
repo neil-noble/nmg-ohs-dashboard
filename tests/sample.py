@@ -143,10 +143,12 @@ def rostered(pid, day, shift):
     return {"personId": pid, "rosterDate": f"{day}T00:00:00", "shiftTypeId": shift}
 
 
-DAY, NIGHT, RR = 1, 2, 3
-SHIFT_TYPES = [{"id": DAY, "isDayshift": True, "isNightshift": False},
-               {"id": NIGHT, "isDayshift": False, "isNightshift": True},
-               {"id": RR, "isDayshift": False, "isNightshift": False}]
+DAY, NIGHT, RR, OFFSITE_DAY = 1, 2, 3, 4
+SHIFT_TYPES = [{"id": DAY, "isDayshift": True, "isNightshift": False, "isOffsite": False},
+               {"id": NIGHT, "isDayshift": False, "isNightshift": True, "isOffsite": False},
+               {"id": RR, "isDayshift": False, "isNightshift": False, "isOffsite": True},
+               # Training - Offsite / Working from Home / Perth Office: day shift, not on site.
+               {"id": OFFSITE_DAY, "isDayshift": True, "isNightshift": False, "isOffsite": True}]
 
 # Ozland ERT members 601-605 and one NMG ERT member, 606. 601-603 and 606 hold all six; 604 gets
 # HAZMAT on 10 Oct; 605 never has Vertical Rescue.

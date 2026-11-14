@@ -634,7 +634,9 @@ def build_ozland_ert(people, roster, shift_types, competencies, today):
             continue
         shift = shifts.get(r.get("shiftTypeId")) or {}
         which = "day" if shift.get("isDayshift") else "night" if shift.get("isNightshift") else None
-        if which:
+        # PeopleTray flags Training - Offsite, Working from Home, Perth Office, Day in Lieu (PER)
+        # and FOA - PER as day shifts though the person is not on site (Neil, 2026-11-14).
+        if which and not shift.get("isOffsite"):
             on_shift.setdefault((day, which), set()).add(ozland[r.get("personId")])
     days = []
     for day in sorted(rostered):
