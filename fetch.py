@@ -17,7 +17,7 @@ PATHS = {
 }
 _UNDATED = ("people", "shifttypes", "competencies")
 # Feeds that are never legitimately empty; an empty one means PeopleTray is not answering properly.
-_CORE = ("events", "hours", "people")
+_CORE = ("events", "hours", "people", "roster", "shifttypes")
 # Every field the dashboard reads, as seen in the live feeds on 2026-10-11. A renamed
 # field would otherwise read as blank and quietly zero a figure.
 REQUIRED_KEYS = {

@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import date, timedelta
 
 import config
+import roster_check
 from periods import (add_months, fy_start, long_label, month_end, month_range, parse_day,
                      reporting_month, rolling_12, short_label)
 
@@ -624,6 +625,13 @@ def build_ozland_ert(people, roster, shift_types, competencies, today):
     ozland = {p.get("id"): _text(p.get("employeeId")) for p in people
               if config.ERT_WORK_ROLE in (p.get("workRoles") or [])
               and config.OZLAND_EMPLOYER in _text(p.get("employer")).lower()}
+    # No record is built from a roster read that cannot be trusted (Neil, 2026-11-14). The build
+    # log is public, so a problem names the person by PeopleTray id only.
+    # Rows after today are never read (the loop below skips them), so they are not checked.
+    read = [r for r in roster if (parse_day(r.get("rosterDate")) or today) <= today]
+    if read:
+        roster_check.verify(read, shifts, date(*fy_start((today.year, today.month)), 1), today,
+                            person_ids=set(ozland), name_people=False)
     on_shift, rostered = {}, set()
     for r in roster:
         day = parse_day(r.get("rosterDate"))

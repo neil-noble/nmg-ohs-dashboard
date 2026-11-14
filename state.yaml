@@ -41,3 +41,7 @@ next: revoke unused PAGES_TOKEN PAT. (PT_WEB_USERNAME + PT_WEB_PASSWORD secrets 
 publish: workflow dashboard.yml (05:30 + 12:00 AWST, manual dispatch) pushes via SSH deploy key - secret SITE_DEPLOY_KEY, deploy key "nmg-ohs-dashboard workflow" on the site repo. PAGES_TOKEN secret is unused (PAT lacked write, and was pasted in chat) - delete/revoke.
 wix: no REST API creates an Editor page with an iframe - manual editor step
 api_key: C:\claude\PeopleTray DAS\reference\PT API Key for NMG.txt (line 2) - never copy into repo
+
+roster_rules_2026_11_14: >
+  build_ozland_ert verifies the FY-to-date roster rows (Ozland ERT Members) before counting; public log, so people are named by PeopleTray id only. roster + shifttypes added to fetch._CORE (never legitimately empty). Tests 190 -> 196 (+13 roster_check).
+  Rules: CLAUDE.md 'PeopleTray roster rules'.
