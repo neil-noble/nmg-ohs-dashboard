@@ -217,12 +217,15 @@ def ozland_page(report):
 
 def test_ozland_ert_bars_are_green_or_red_with_percentages(report):
     section = section_of(ozland_page(report), "ozland-ert")
-    assert section.count("<rect") == 3
-    assert section.count('fill="#2E9E44"><title>') == 1 and section.count('fill="#D94F32"><title>') == 2
-    assert '<b class="ok">33% Compliant</b>' in section and "1 of 3 days" in section
-    assert '<b class="alert">67% Not Compliant</b>' in section and "2 of 3 days" in section
+    # 1 Jul to 7 Oct has no PeopleTray roster and counts as not met (Neil, 2026-11-20): 99 + 3 days.
+    assert section.count("<rect") == 102
+    assert section.count('fill="#2E9E44"><title>') == 1 and section.count('fill="#D94F32"><title>') == 101
+    assert '<b class="ok">1% Compliant</b>' in section and "1 of 102 days" in section
+    assert '<b class="alert">99% Not Compliant</b>' in section and "101 of 102 days" in section
     assert "10 Oct 2026: 2 qualified on day shift, 2 on night shift - met" in section
-    assert "no roster before 8 Oct 2026" in section
+    assert "1 Jul 2026: 0 qualified on day shift, 0 on night shift - not met" in section
+    assert "1 Jul 2026 to 11 Oct 2026" in section
+    assert "no roster before 8 Oct 2026, so the days from 1 July to then are counted as not met" in section
 
 
 def test_ozland_ert_with_no_roster(report):

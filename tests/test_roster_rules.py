@@ -26,7 +26,7 @@ def row(person, shift, day="2026-11-14T00:00:00"):
 
 def test_a_clean_roster_builds_the_record():
     record = metrics.build_ozland_ert(PEOPLE, [row(1, 1), row(2, 2)], TYPES, [], TODAY)
-    assert [d["day"] for d in record["days"]] == [TODAY]
+    assert [d["day"] for d in record["days"] if not d.get("no_roster")] == [TODAY]
 
 
 def test_an_ozland_member_with_two_shifts_stops_the_build_without_naming_them():

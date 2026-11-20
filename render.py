@@ -627,6 +627,9 @@ def _ozland_ert(report):
     met_pct, missed_pct = oz["met"] / total * 100, oz["missed"] / total * 100
     start = days[0]["label"]
     late_start = days[0]["day"] > oz["fy_start"]
+    roster_from = oz.get("roster_from")
+    no_roster = bool(roster_from) and roster_from > oz["fy_start"] and not late_start
+    roster_from_label = next((d["label"] for d in days if not d.get("no_roster")), "")
     inner = (_ozland_chart(days)
              + _legend([("Obligation met", MET_COLOUR), ("Not met", MISSED_COLOUR)])
              # The verdict sits with its figure, in its colour (Neil, 2026-10-22).
@@ -642,6 +645,8 @@ def _ozland_ert(report):
              "night split."
              + (f" PeopleTray holds no roster before {escape(start)}, so the record starts there "
                 "rather than at 1 July." if late_start else "")
+             + (f" PeopleTray holds no roster before {escape(roster_from_label)}, so the days from "
+                f"1 July to then are counted as not met." if no_roster else "")
              + "</p>")
     return _visual(12, "Ozland ERT obligation", inner, "ozland-ert",
                    sub=f"{start} to {days[-1]['label']}, financial year to date")

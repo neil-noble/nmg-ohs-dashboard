@@ -618,8 +618,9 @@ def build_ozland_ert(people, roster, shift_types, competencies, today):
     """Did Ozland have 2 qualified ERT members on day shift and 2 on night shift, day by day?
 
     Counted the way the ERT dashboard counts its dials: today's ERT Members (work role), rostered
-    on a shift PeopleTray flags as day or night. Days before PeopleTray holds a roster are left
-    out rather than counted as a miss.
+    on a shift PeopleTray flags as day or night. The record runs from 1 July: days before
+    PeopleTray holds a roster (it starts 20 Aug 2026) count as 0 day / 0 night, not met (Neil,
+    2026-11-20 - he chose that over leaving them out). An empty roster read is still no record.
     """
     shifts = {s.get("id"): s for s in shift_types}
     ozland = {p.get("id"): _text(p.get("employeeId")) for p in people
@@ -647,6 +648,14 @@ def build_ozland_ert(people, roster, shift_types, competencies, today):
         if which and not shift.get("isOffsite"):
             on_shift.setdefault((day, which), set()).add(ozland[r.get("personId")])
     days = []
+    start = date(*fy_start((today.year, today.month)), 1)
+    roster_from = min(rostered) if rostered else None
+    if roster_from:
+        gap = start
+        while gap < roster_from:
+            days.append({"day": gap, "label": _day_label(gap), "day_shift": 0, "night_shift": 0,
+                         "met": False, "no_roster": True})
+            gap += timedelta(days=1)
     for day in sorted(rostered):
         qualified = _qualified_on(competencies, day)
         crew = {which: len(on_shift.get((day, which), set()) & qualified) for which in ("day", "night")}
@@ -655,7 +664,7 @@ def build_ozland_ert(people, roster, shift_types, competencies, today):
                      "met": min(crew.values()) >= config.OZLAND_ERT_PER_SHIFT})
     met = sum(1 for d in days if d["met"])
     return {"days": days, "met": met, "missed": len(days) - met,
-            "fy_start": date(*fy_start((today.year, today.month)), 1)}
+            "fy_start": start, "roster_from": roster_from}
 
 
 def build_report(raw, today, generated):
